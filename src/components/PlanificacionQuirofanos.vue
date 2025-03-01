@@ -196,20 +196,28 @@ export default {
       }
     },
     editarPaciente(paciente, index) {
-      // Mostrar un panel más completo de edición con opciones
+      // Definir las opciones disponibles
       const opciones = [
         'Cambiar prioridad',
         'Editar datos clínicos',
         'Cambiar estado',
         'Añadir notas'
       ];
-
-      const opcion = prompt(`Opciones para ${paciente.nombre}:\n1. Cambiar prioridad\n2. Editar datos clínicos\n3. Cambiar estado\n4. Añadir notas\n\nIngrese el número de la opción:`);
+      
+      // Construir el mensaje del prompt usando las opciones
+      let mensajePrompt = `Opciones para ${paciente.nombre}:\n`;
+      opciones.forEach((opcion, i) => {
+        mensajePrompt += `${i+1}. ${opcion}\n`;
+      });
+      mensajePrompt += '\nIngrese el número de la opción:';
+      
+      const opcion = prompt(mensajePrompt);
       
       if (!opcion) return;
       
       const opcionNum = parseInt(opcion);
       
+      // Usar el índice de las opciones para determinar la acción
       switch(opcionNum) {
         case 1: {
           const nuevaPrioridad = prompt('Ingrese la nueva prioridad (1-10, donde 1 es más urgente):', '5');
