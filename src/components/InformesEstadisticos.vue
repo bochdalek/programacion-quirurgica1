@@ -101,8 +101,10 @@ export default {
     ...mapState({
       authState: state => state.auth
     }),
+    // Se mantiene el método pero ahora siempre devuelve true
     esProgramador() {
-      return this.authState && this.authState.userRole === 'programador';
+      // Temporalmente devolvemos true mientras no se implementen los roles
+      return true;
     },
     totalPacientes() {
       return this.pacientesUrgentes.length + 
@@ -117,11 +119,7 @@ export default {
   },
   methods: {
     generarReporteSemanal() {
-      if (!this.esProgramador) {
-        alert('No tienes permisos para ejecutar esta operación.');
-        return;
-      }
-      
+      // Ya no verificamos permisos mientras se implementan los roles
       alert('Generando reporte semanal...');
       // Aquí se implementaría la lógica para generar el reporte
       setTimeout(() => {
@@ -129,11 +127,7 @@ export default {
       }, 1500);
     },
     generarReporteMensual() {
-      if (!this.esProgramador) {
-        alert('No tienes permisos para ejecutar esta operación.');
-        return;
-      }
-      
+      // Ya no verificamos permisos mientras se implementan los roles
       alert('Generando reporte mensual...');
       // Aquí se implementaría la lógica para generar el reporte
       setTimeout(() => {
@@ -141,11 +135,7 @@ export default {
       }, 2000);
     },
     exportarDatos() {
-      if (!this.esProgramador) {
-        alert('No tienes permisos para ejecutar esta operación.');
-        return;
-      }
-      
+      // Ya no verificamos permisos mientras se implementan los roles
       alert('Exportando datos...');
       // Aquí se implementaría la lógica para exportar los datos
       setTimeout(() => {
