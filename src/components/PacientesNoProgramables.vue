@@ -54,8 +54,7 @@
                 </td>
                 <td class="py-2 px-3">
                   <button @click="moverAPendientes(paciente, 'medicacion')" 
-                          :disabled="paciente.tiempoRestante > 0" 
-                          :class="paciente.tiempoRestante <= 0 ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-400'" 
+                          :class="paciente.tiempoRestante <= 0 ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600'" 
                           class="text-white px-2 py-1 rounded text-sm">
                     Mover a Pendientes
                   </button>
@@ -166,8 +165,11 @@ export default {
     },
     moverAPendientes(paciente, origen) {
       if (origen === 'medicacion' && paciente.tiempoRestante > 0) {
-        alert(`No se puede programar a ${paciente.nombre} hasta que finalice el tiempo de restricción por medicación.`);
-        return;
+        const confirmacionAnestesista = confirm(`ADVERTENCIA: ${paciente.nombre} aún no ha completado el tiempo de espera recomendado para ${paciente.medicacion} (${this.formatTiempoRestante(paciente.tiempoRestante)} restantes).\n\n¿Confirma que un anestesista ha autorizado la programación a pesar de la medicación?`);
+        
+        if (!confirmacionAnestesista) {
+          return;
+        }
       }
       
       if (confirm(`¿Confirma que ${paciente.nombre} está listo para ser programado?`)) {
