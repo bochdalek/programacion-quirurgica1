@@ -6,6 +6,30 @@
       <!-- Lista de no programables por medicación -->
       <div>
         <h3 class="text-lg font-bold mb-3">Restricciones por Medicación</h3>
+        <div class="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+          <h4 class="font-semibold text-blue-800 mb-2">Tiempos de suspensión preoperatoria:</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+            <div>
+              <p class="font-medium">Antiagregantes:</p>
+              <ul class="ml-4 list-disc">
+                <li>Ácido Acetilsalicílico: 5-7 días</li>
+                <li>Clopidogrel: 5-7 días</li>
+                <li>Prasugrel: 7-10 días</li>
+                <li>Ticagrelor: 5 días</li>
+              </ul>
+            </div>
+            <div>
+              <p class="font-medium">Anticoagulantes:</p>
+              <ul class="ml-4 list-disc">
+                <li>Warfarina: 5 días</li>
+                <li>Dabigatrán: 2 días</li>
+                <li>Rivaroxabán: 2 días</li>
+                <li>Apixabán: 2 días</li>
+                <li>HBPM: 12 horas</li>
+              </ul>
+            </div>
+          </div>
+        </div>
         <div class="overflow-auto max-h-96">
           <table class="min-w-full bg-white border">
             <thead>
@@ -110,14 +134,28 @@ export default {
       // Determinar el tiempo total según la medicación
       let tiempoTotal = 24; // Por defecto
       
-      if (paciente.medicacion === 'Warfarina/Sintrom' || paciente.medicacion === 'Clopidogrel') {
-        tiempoTotal = 120;
-      } else if (paciente.medicacion === 'DOAC') {
-        tiempoTotal = 48;
-      } else if (paciente.medicacion === 'HBPM') {
-        tiempoTotal = 12;
-      } else if (paciente.medicacion === 'AAS') {
-        tiempoTotal = 24;
+      // Antiagregantes
+      if (paciente.medicacion === 'Ácido Acetilsalicílico') {
+        tiempoTotal = 144; // 6 días en horas (promedio de 5-7 días)
+      } else if (paciente.medicacion === 'Clopidogrel') {
+        tiempoTotal = 144; // 6 días en horas
+      } else if (paciente.medicacion === 'Prasugrel') {
+        tiempoTotal = 204; // 8.5 días en horas (promedio de 7-10 días)
+      } else if (paciente.medicacion === 'Ticagrelor') {
+        tiempoTotal = 120; // 5 días en horas
+      }
+      // Anticoagulantes
+      else if (paciente.medicacion === 'Warfarina' || paciente.medicacion === 'Warfarina/Sintrom') {
+        tiempoTotal = 120; // 5 días en horas
+      } else if (paciente.medicacion === 'Dabigatrán' || 
+                paciente.medicacion === 'Rivaroxabán' || 
+                paciente.medicacion === 'Apixabán' ||
+                paciente.medicacion === 'DOAC') {
+        tiempoTotal = 48; // 2 días en horas
+      }
+      // Otros
+      else if (paciente.medicacion === 'HBPM') {
+        tiempoTotal = 12; // 12 horas
       }
       
       // Calcular el progreso
