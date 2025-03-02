@@ -118,7 +118,14 @@ const authModule = {
                 return;
               }
               
-              const token = await user.getIdToken();
+              let token;
+              try {
+                token = await user.getIdToken();
+              } catch (error) {
+                console.error("Error al obtener token, usando token simulado:", error);
+                token = "dev-token-" + Date.now();
+              }
+              
               commit('setAuth', { token, user: userData });
             } catch (error) {
               console.error("Error al obtener datos de usuario:", error);
@@ -152,11 +159,20 @@ const authModule = {
             throw new Error('El usuario no tiene permisos asignados');
           }
           
-          const token = await user.getIdToken();
+          let token;
+          try {
+            token = await user.getIdToken();
+          } catch (error) {
+            console.error("Error al obtener token, usando token simulado:", error);
+            token = "dev-token-" + Date.now();
+          }
+          
           commit('setAuth', { token, user: userData });
           
           // Redirige según el rol
-          this.dispatch('redirectBasedOnRole', userData.role);
+          setTimeout(() => {
+            this.dispatch('redirectBasedOnRole', userData.role);
+          }, 100);
           
           return userData;
         }
@@ -169,24 +185,28 @@ const authModule = {
     // Redirige según el rol
     redirectBasedOnRole(_, role) {
       console.log("redirectBasedOnRole llamado con rol:", role);
-      switch(role) {
-        case 'admin':
-          router.push('/configuracion');
-          break;
-        case 'programador':
-          router.push('/calendario');
-          break;
-        case 'traumatologo':
-          router.push('/guardia');
-          break;
-        case 'enfermeria':
-          router.push('/calendario');
-          break;
-        default:
-          console.warn(`Rol desconocido: ${role}, redirigiendo a login`);
-          router.push('/login');
-          break;
-      }
+      
+      // Añadir un pequeño retraso para asegurar que el estado se ha actualizado
+      setTimeout(() => {
+        switch(role) {
+          case 'admin':
+            router.push('/configuracion');
+            break;
+          case 'programador':
+            router.push('/calendario');
+            break;
+          case 'traumatologo':
+            router.push('/guardia');
+            break;
+          case 'enfermeria':
+            router.push('/calendario');
+            break;
+          default:
+            console.warn(`Rol desconocido: ${role}, redirigiendo a login`);
+            router.push('/login');
+            break;
+        }
+      }, 100);
     },
     
     // Logout

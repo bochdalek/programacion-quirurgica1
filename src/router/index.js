@@ -20,16 +20,20 @@ import AdministracionSistema from '../components/AdministracionSistema.vue'
 const requirePermission = (permission) => {
   return (to, from, next) => {
     console.log(`Verificando permiso ${permission} para usuario:`, store.getters.currentUser);
-    if (!store.getters.isAuthenticated) {
-      console.log("Usuario no autenticado, redirigiendo a login");
-      next({ name: 'login', query: { redirect: to.fullPath } });
-    } else if (!store.getters.hasPermission(permission)) {
-      console.log(`Usuario no tiene permiso ${permission}, redirigiendo a forbidden`);
-      next({ name: 'forbidden' });
-    } else {
-      console.log(`Usuario tiene permiso ${permission}, continuando`);
-      next();
-    }
+    
+    // Añadir un pequeño retraso para asegurar que el store está completamente inicializado
+    setTimeout(() => {
+      if (!store.getters.isAuthenticated) {
+        console.log("Usuario no autenticado, redirigiendo a login");
+        next({ name: 'login', query: { redirect: to.fullPath } });
+      } else if (!store.getters.hasPermission(permission)) {
+        console.log(`Usuario no tiene permiso ${permission}, redirigiendo a forbidden`);
+        next({ name: 'forbidden' });
+      } else {
+        console.log(`Usuario tiene permiso ${permission}, continuando`);
+        next();
+      }
+    }, 50);
   };
 };
 
@@ -55,23 +59,26 @@ const routes = [
       const userRole = store.getters.currentUser?.role;
       console.log("Rol de usuario para redirección:", userRole);
       
-      // Redirigir según el rol del usuario
-      if (userRole === 'admin') {
-        console.log("Redirigiendo a admin a /configuracion");
-        next('/configuracion');
-      } else if (userRole === 'programador') {
-        console.log("Redirigiendo a programador a /calendario");
-        next('/calendario');
-      } else if (userRole === 'traumatologo') {
-        console.log("Redirigiendo a traumatologo a /guardia");
-        next('/guardia');
-      } else if (userRole === 'enfermeria') {
-        console.log("Redirigiendo a enfermeria a /calendario");
-        next('/calendario');
-      } else {
-        console.log("Rol no reconocido, redirigiendo a login");
-        next('/login');
-      }
+      // Añadir un pequeño retraso
+      setTimeout(() => {
+        // Redirigir según el rol del usuario
+        if (userRole === 'admin') {
+          console.log("Redirigiendo a admin a /configuracion");
+          next('/configuracion');
+        } else if (userRole === 'programador') {
+          console.log("Redirigiendo a programador a /calendario");
+          next('/calendario');
+        } else if (userRole === 'traumatologo') {
+          console.log("Redirigiendo a traumatologo a /guardia");
+          next('/guardia');
+        } else if (userRole === 'enfermeria') {
+          console.log("Redirigiendo a enfermeria a /calendario");
+          next('/calendario');
+        } else {
+          console.log("Rol no reconocido, redirigiendo a login");
+          next('/login');
+        }
+      }, 50);
     }
   },
   { 
@@ -178,12 +185,38 @@ const router = createRouter({
   routes
 })
 
-// Protección global de rutas
+// Protección global de rutas con retraso para asegurar sincronización
 router.beforeEach((to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   const isAuthenticated = store.getters.isAuthenticated;
   
   console.log(`Navegando a ${to.path}, requiere auth: ${requiresAuth}, está autenticado: ${isAuthenticated}`);
+  
+  // Verificar si estamos autenticados pero intentando acceder a login
+  if (isAuthenticated && to.name === 'login') {
+    console.log("Usuario autenticado intentando acceder a login, redirigiendo según rol");
+    const role = store.getters.currentUser?.role;
+    
+    // Pequeño retraso para asegurar que el store está listo
+    setTimeout(() => {
+      if (role === 'admin') {
+        console.log("Redirigiendo admin autenticado desde login a /configuracion");
+        next('/configuracion');
+      } else if (role === 'programador') {
+        console.log("Redirigiendo programador autenticado desde login a /calendario");
+        next('/calendario');
+      } else if (role === 'traumatologo') {
+        console.log("Redirigiendo traumatólogo autenticado desde login a /guardia");
+        next('/guardia');
+      } else if (role === 'enfermeria') {
+        console.log("Redirigiendo enfermería autenticado desde login a /calendario");
+        next('/calendario');
+      } else {
+        next();
+      }
+    }, 50);
+    return;
+  }
   
   if (requiresAuth && !isAuthenticated) {
     console.log("Redirigiendo a login porque requiere autenticación");

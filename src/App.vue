@@ -73,6 +73,13 @@
     
     <!-- Si no está autenticado, mostrar vista de login -->
     <router-view v-else></router-view>
+
+    <!-- Botón de emergencia cuando el usuario está autenticado pero sigue en login -->
+    <div v-if="isAuthenticated && $route.path === '/login'" class="fixed bottom-5 right-5 z-50">
+      <button @click="redirectToCorrectPage" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded shadow-lg">
+        Forzar navegación
+      </button>
+    </div>
   </div>
 </template>
 
@@ -109,6 +116,30 @@ export default {
           .catch(error => {
             console.error("Error al cargar datos iniciales:", error);
           });
+      }
+    },
+    
+    // Método para forzar la redirección
+    redirectToCorrectPage() {
+      const role = this.currentUser?.role;
+      if (role) {
+        console.log("Forzando redirección para rol:", role);
+        switch(role) {
+          case 'admin':
+            this.$router.push('/configuracion');
+            break;
+          case 'programador':
+            this.$router.push('/calendario');
+            break;
+          case 'traumatologo':
+            this.$router.push('/guardia');
+            break;
+          case 'enfermeria':
+            this.$router.push('/calendario');
+            break;
+          default:
+            this.$router.push('/');
+        }
       }
     }
   },

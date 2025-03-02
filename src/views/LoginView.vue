@@ -49,6 +49,14 @@
           <div v-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
             {{ error }}
           </div>
+
+          <!-- Botón de emergencia para redirección (NUEVA ADICIÓN) -->
+          <div v-if="$store.getters.isAuthenticated" class="mt-4 text-center">
+            <p class="text-sm text-gray-600 mb-2">Si ya has iniciado sesión pero sigues en esta página:</p>
+            <button type="button" @click="forceRedirect" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+              Continuar a la aplicación
+            </button>
+          </div>
           
           <!-- Datos de usuario para demo -->
           <div class="mt-6 bg-blue-50 p-4 rounded-md border border-blue-200">
@@ -94,6 +102,30 @@
           this.error = err.message || 'Error al iniciar sesión';
         } finally {
           this.isLoading = false;
+        }
+      },
+      
+      // NUEVO MÉTODO para forzar la redirección manualmente
+      forceRedirect() {
+        const role = this.$store.getters.currentUser?.role;
+        if (role) {
+          console.log("Redirección manual iniciada para rol:", role);
+          switch(role) {
+            case 'admin':
+              this.$router.push('/configuracion');
+              break;
+            case 'programador':
+              this.$router.push('/calendario');
+              break;
+            case 'traumatologo':
+              this.$router.push('/guardia');
+              break;
+            case 'enfermeria':
+              this.$router.push('/calendario');
+              break;
+            default:
+              this.$router.push('/');
+          }
         }
       }
     },

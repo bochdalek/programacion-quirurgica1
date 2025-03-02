@@ -25,6 +25,34 @@ const calendarioCollection = collection(db, 'calendario')
 // Métodos de autenticación
 const loginWithEmail = async (email, password) => {
   try {
+    // Para entorno de desarrollo, aceptamos credenciales específicas
+    if (process.env.NODE_ENV !== 'production') {
+      // Simulación simplificada para desarrollo
+      const username = email.split('@')[0];
+      
+      // Verificar credenciales simples para desarrollo
+      if (
+        (username === 'admin@example.com' && password === 'admin123') ||
+        (username === 'prog@example.com' && password === 'prog123') ||
+        (username === 'trauma@example.com' && password === 'trauma123') ||
+        (username === 'enf@example.com' && password === 'enf123') ||
+        // Versiones sin @example.com
+        (username === 'admin' && password === 'admin123') ||
+        (username === 'prog' && password === 'prog123') ||
+        (username === 'trauma' && password === 'trauma123') ||
+        (username === 'enf' && password === 'enf123')
+      ) {
+        console.log("Login simulado exitoso para desarrollo");
+        // Simulamos un objeto user con el método getIdToken para desarrollo
+        return {
+          uid: username,
+          email: email,
+          // Añadir método getIdToken simulado
+          getIdToken: () => Promise.resolve('dev-token-' + Date.now())
+        };
+      }
+    }
+    
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     return userCredential.user
   } catch (error) {
@@ -50,13 +78,43 @@ const getUserData = async (uid) => {
         return { id: userDoc.id, ...userData };
       } else {
         console.error("No se encontró documento de usuario para UID:", uid);
+        
+        // Simulación para ambiente de desarrollo (eliminar en producción)
+        // Esto permite trabajar sin una base de datos Firebase completamente configurada
+        if (process.env.NODE_ENV !== 'production') {
+          console.log("Ambiente de desarrollo detectado, generando datos de usuario simulados");
+          // Determinar el rol basado en el UID o email
+          let role = 'user';
+          
+          // Este código es solo para desarrollo y pruebas
+          if (uid.includes('admin')) {
+            role = 'admin';
+          } else if (uid.includes('prog')) {
+            role = 'programador';
+          } else if (uid.includes('trauma')) {
+            role = 'traumatologo';
+          } else if (uid.includes('enf')) {
+            role = 'enfermeria';
+          }
+          
+          const simulatedUser = {
+            id: uid,
+            name: uid.split('@')[0],
+            email: `${uid}@example.com`,
+            role: role
+          };
+          
+          console.log("Datos de usuario simulados:", simulatedUser);
+          return simulatedUser;
+        }
+        
         throw new Error('Usuario no encontrado');
       }
     } catch (error) {
       console.error("Error al obtener datos de usuario:", error.message);
       throw error;
     }
-  };
+};
 
 // Métodos para la configuración
 const getConfiguracion = async () => {
