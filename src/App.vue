@@ -1,32 +1,56 @@
 <template>
   <div class="min-h-screen bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
+    <div v-if="isAuthenticated" class="container mx-auto px-4 py-8">
       <!-- Barra de navegación principal -->
       <nav class="bg-blue-600 text-white rounded-lg mb-6 shadow-lg">
         <div class="container mx-auto px-6 py-3">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div class="text-xl font-bold mb-3 md:mb-0">
-              Sistema de Programación Quirúrgica
+            <div class="flex items-center justify-between mb-3 md:mb-0">
+              <div class="text-xl font-bold">
+                Sistema de Programación Quirúrgica
+              </div>
+              <div class="md:hidden">
+                <button @click="menuAbierto = !menuAbierto" class="text-white focus:outline-none">
+                  <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path v-if="menuAbierto" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="flex flex-wrap gap-2">
-              <router-link to="/configuracion" class="hover:bg-blue-700 px-3 py-2 rounded" active-class="bg-blue-800">
+            
+            <div :class="menuAbierto ? 'block' : 'hidden'" class="md:flex md:flex-row md:items-center flex-wrap gap-2">
+              <router-link v-if="hasPermission('manage_configuration')" to="/configuracion" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
                 Configuración
               </router-link>
-              <router-link to="/guardia" class="hover:bg-blue-700 px-3 py-2 rounded" active-class="bg-blue-800">
+              <router-link v-if="hasPermission('register_patients')" to="/guardia" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
                 Guardia
               </router-link>
-              <router-link to="/presentar" class="hover:bg-blue-700 px-3 py-2 rounded" active-class="bg-blue-800">
+              <router-link v-if="hasPermission('present_patients')" to="/presentar" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
                 Presentar
               </router-link>
-              <router-link to="/noprogramables" class="hover:bg-blue-700 px-3 py-2 rounded" active-class="bg-blue-800">
+              <router-link v-if="hasPermission('view_calendar')" to="/noprogramables" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
                 No Programables
               </router-link>
-              <router-link to="/planificacion" class="hover:bg-blue-700 px-3 py-2 rounded" active-class="bg-blue-800">
+              <router-link v-if="hasPermission('manage_calendar')" to="/planificacion" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
                 Planificación
               </router-link>
-              <router-link to="/reportes" class="hover:bg-blue-700 px-3 py-2 rounded" active-class="bg-blue-800">
+              <router-link v-if="hasPermission('view_calendar')" to="/calendario" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
+                Calendario
+              </router-link>
+              <router-link v-if="hasPermission('view_reports')" to="/reportes" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
                 Informes
               </router-link>
+              <router-link v-if="hasPermission('reset_week')" to="/admin" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
+                Administración
+              </router-link>
+              
+              <div class="block md:ml-4 border-t md:border-t-0 md:border-l border-blue-500 pt-2 md:pt-0 md:pl-4 mt-2 md:mt-0">
+                <span class="text-sm md:mr-2">{{ currentUser ? currentUser.name : '' }} ({{ userRole ? userRole.name : '' }})</span>
+                <button @click="logout" class="bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-1 rounded">
+                  Cerrar Sesión
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -34,7 +58,11 @@
 
       <!-- Contenido principal basado en la ruta -->
       <div class="bg-white rounded-lg shadow-lg p-4 md:p-6">
-        <router-view></router-view>
+        <div v-if="isLoading" class="flex justify-center items-center py-8">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <p class="ml-3 text-gray-700">Cargando datos...</p>
+        </div>
+        <router-view v-else></router-view>
       </div>
       
       <!-- Pie de página -->
@@ -42,11 +70,70 @@
         <p>Sistema de Programación Quirúrgica &copy; 2025</p>
       </footer>
     </div>
+    
+    <!-- Si no está autenticado, mostrar vista de login -->
+    <router-view v-else></router-view>
   </div>
 </template>
 
 <script>
+import { mapState, mapGetters } from 'vuex'
+
 export default {
-  name: 'AppPrincipal'
+  name: 'AppPrincipal',
+  data() {
+    return {
+      menuAbierto: false,
+      dataLoaded: false
+    }
+  },
+  computed: {
+    ...mapState(['isLoading', 'error']),
+    ...mapGetters(['isAuthenticated', 'currentUser', 'hasPermission', 'userRole'])
+  },
+  methods: {
+    logout() {
+      if (confirm('¿Está seguro de que desea cerrar sesión?')) {
+        this.$store.dispatch('logout')
+      }
+    },
+    loadInitialData() {
+      console.log("Intentando cargar datos iniciales. Autenticado:", this.isAuthenticated, "Ruta:", this.$route.name);
+      if (this.isAuthenticated && !this.dataLoaded && this.$route.name !== 'forbidden') {
+        console.log("Cargando datos iniciales...");
+        this.$store.dispatch('fetchInitialData')
+          .then(() => {
+            console.log("Datos iniciales cargados con éxito");
+            this.dataLoaded = true;
+          })
+          .catch(error => {
+            console.error("Error al cargar datos iniciales:", error);
+          });
+      }
+    }
+  },
+  watch: {
+    // Cerrar el menú cuando cambie la ruta
+    '$route'() {
+      this.menuAbierto = false;
+    },
+    // Cargar datos cuando el usuario esté autenticado o cambie de ruta
+    isAuthenticated(newValue) {
+      console.log("Estado de autenticación cambiado:", newValue);
+      if (newValue) {
+        this.loadInitialData();
+      }
+    },
+    '$route.name'() {
+      this.loadInitialData();
+    }
+  },
+  created() {
+    console.log("App.vue creado. Estado de autenticación:", this.isAuthenticated);
+    // Intentar cargar datos si el usuario ya está autenticado
+    this.$nextTick(() => {
+      this.loadInitialData();
+    });
+  }
 }
 </script>

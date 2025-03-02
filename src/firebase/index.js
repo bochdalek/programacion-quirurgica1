@@ -39,17 +39,24 @@ const logout = () => {
 
 // Obtener datos del usuario autenticado
 const getUserData = async (uid) => {
-  try {
-    const userDoc = await getDoc(doc(usersCollection, uid))
-    if (userDoc.exists()) {
-      return { id: userDoc.id, ...userDoc.data() }
+    console.log("Buscando datos de usuario con UID:", uid);
+    try {
+      const userDoc = await getDoc(doc(usersCollection, uid));
+      console.log("Referencia del documento:", doc(usersCollection, uid).path);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        console.log("Datos de usuario encontrados:", userData);
+        return { id: userDoc.id, ...userData };
+      } else {
+        console.error("No se encontró documento de usuario para UID:", uid);
+        throw new Error('Usuario no encontrado');
+      }
+    } catch (error) {
+      console.error("Error al obtener datos de usuario:", error.message);
+      throw error;
     }
-    throw new Error('Usuario no encontrado')
-  } catch (error) {
-    console.error("Error al obtener datos de usuario:", error)
-    throw error
-  }
-}
+  };
 
 // Métodos para la configuración
 const getConfiguracion = async () => {

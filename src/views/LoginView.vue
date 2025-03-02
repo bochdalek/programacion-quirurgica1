@@ -1,4 +1,3 @@
-<!-- src/views/LoginView.vue -->
 <template>
     <div class="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div class="max-w-md w-full space-y-8">
@@ -81,23 +80,29 @@
     },
     methods: {
       async onSubmit() {
-        this.isLoading = true
-        this.error = null
+        this.isLoading = true;
+        this.error = null;
+        
+        console.log("Iniciando login con:", this.form.username);
         
         try {
-          await this.$store.dispatch('login', this.form)
-          this.$router.push('/')
+          const result = await this.$store.dispatch('login', this.form);
+          console.log("Login exitoso, resultado:", result);
+          // No necesitamos redirección aquí ya que se hace en la acción login
         } catch (err) {
-          this.error = err.message || 'Error al iniciar sesión'
+          console.error("Error durante login:", err);
+          this.error = err.message || 'Error al iniciar sesión';
         } finally {
-          this.isLoading = false
+          this.isLoading = false;
         }
       }
     },
     // Redireccionar si ya está autenticado
     created() {
+      console.log("LoginView creado, verificando autenticación");
       if (this.$store.getters.isAuthenticated) {
-        this.$router.push('/')
+        console.log("Usuario ya autenticado, redirigiendo");
+        this.$store.dispatch('redirectBasedOnRole', this.$store.getters.currentUser.role);
       }
     }
   }

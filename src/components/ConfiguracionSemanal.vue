@@ -60,18 +60,32 @@ export default {
     guardarConfiguracion() {
       this.$store.commit('actualizarConfiguracion', JSON.parse(JSON.stringify(this.configuracionLocal)));
       alert('Configuración guardada correctamente');
+    },
+    initializeConfiguration() {
+      // Inicializar la configuración con valores por defecto si no existe
+      this.configuracionLocal = this.diasSemana.map((_, index) => {
+        // Si hay configuración existente, usarla
+        if (this.configuracion && this.configuracion[index]) {
+          return {
+            manana: this.configuracion[index].manana || 0,
+            tarde: this.configuracion[index].tarde || 0
+          };
+        }
+        // Valores por defecto
+        return {
+          manana: index < 5 ? 2 : 1, // Lunes a Viernes: 2, Sábado y Domingo: 1
+          tarde: index < 5 ? 2 : 1
+        };
+      });
     }
   },
   created() {
-    // Inicializar la configuración si es la primera vez
-    if (!this.configuracion || this.configuracion.length === 0) {
-      this.configuracionLocal = this.diasSemana.map(() => ({
-        manana: 2,
-        tarde: 2
-      }));
-    } else {
-      // Crear una copia profunda de la configuración existente
-      this.configuracionLocal = JSON.parse(JSON.stringify(this.configuracion));
+    this.initializeConfiguration();
+  },
+  mounted() {
+    // Por seguridad, volver a inicializar si no tiene los datos correctos
+    if (!this.configuracionLocal || this.configuracionLocal.length !== this.diasSemana.length) {
+      this.initializeConfiguration();
     }
   }
 }
