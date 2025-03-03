@@ -173,9 +173,18 @@ export default {
       }
       
       if (confirm(`¿Confirma que ${paciente.nombre} está listo para ser programado?`)) {
-        const origenCommit = origen === 'medicacion' ? 'noProgMedicacion' : 'noProgPartesBlandas';
-        this.$store.commit('moverAPendientes', { paciente, origen: origenCommit });
-        alert(`${paciente.nombre} ha sido movido a la lista de pendientes de cirugía programada.`);
+        console.log("Enviando paciente a pendientes desde no programables:", paciente, origen);
+        const origenStore = origen === 'medicacion' ? 'noProgMedicacion' : 'noProgPartesBlandas';
+        
+        // Es importante enviar el objeto paciente completo, no solo el ID
+        this.$store.dispatch('moverAPendientes', { 
+          paciente: paciente, 
+          origen: origenStore 
+        }).then(() => {
+          alert(`${paciente.nombre} ha sido movido a la lista de pendientes de cirugía programada.`);
+        }).catch(error => {
+          alert(`Error al mover paciente: ${error.message}`);
+        });
       }
     }
   },

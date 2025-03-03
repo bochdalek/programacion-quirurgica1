@@ -78,8 +78,8 @@ export default createStore({
       state.pacientesUrgentes.push(paciente)
     },
     
-    eliminarPacienteUrgente(state, id) {
-      state.pacientesUrgentes = state.pacientesUrgentes.filter(p => p.id !== id)
+    eliminarPacienteUrgente(state, index) {
+      state.pacientesUrgentes.splice(index, 1)
     },
     
     // Pacientes presentar
@@ -91,8 +91,8 @@ export default createStore({
       state.pacientesPresentar.push(paciente)
     },
     
-    eliminarPacientePresentar(state, id) {
-      state.pacientesPresentar = state.pacientesPresentar.filter(p => p.id !== id)
+    eliminarPacientePresentar(state, index) {
+      state.pacientesPresentar.splice(index, 1)
     },
     
     // Pacientes no programables por medicación
@@ -104,15 +104,15 @@ export default createStore({
       state.pacientesNoProgMedicacion.push(paciente)
     },
     
+    eliminarPacienteNoProgMedicacion(state, index) {
+      state.pacientesNoProgMedicacion.splice(index, 1)
+    },
+    
     actualizarPacienteNoProgMedicacion(state, { id, paciente }) {
       const index = state.pacientesNoProgMedicacion.findIndex(p => p.id === id)
       if (index !== -1) {
         state.pacientesNoProgMedicacion[index] = paciente
       }
-    },
-    
-    eliminarPacienteNoProgMedicacion(state, id) {
-      state.pacientesNoProgMedicacion = state.pacientesNoProgMedicacion.filter(p => p.id !== id)
     },
     
     // Pacientes no programables por partes blandas
@@ -124,8 +124,8 @@ export default createStore({
       state.pacientesNoProgPartesBlandas.push(paciente)
     },
     
-    eliminarPacienteNoProgPartesBlandas(state, id) {
-      state.pacientesNoProgPartesBlandas = state.pacientesNoProgPartesBlandas.filter(p => p.id !== id)
+    eliminarPacienteNoProgPartesBlandas(state, index) {
+      state.pacientesNoProgPartesBlandas.splice(index, 1)
     },
     
     // Pacientes pendientes
@@ -141,8 +141,8 @@ export default createStore({
       state.pacientesPendientes = nuevaLista
     },
     
-    quitarPacientePendiente(state, id) {
-      state.pacientesPendientes = state.pacientesPendientes.filter(p => p.id !== id)
+    quitarPacientePendiente(state, index) {
+      state.pacientesPendientes.splice(index, 1)
     },
     
     // Calendario semanal
@@ -288,25 +288,45 @@ export default createStore({
       }
     },
     
-    async operarPacienteUrgente({ commit, dispatch }, { pacienteId, requiereSegunda }) {
+    async operarPacienteUrgente({ commit, dispatch }, { paciente, requiereSegunda }) {
+      console.log("Operando paciente urgente:", paciente, "requiere segunda:", requiereSegunda);
       commit('setLoading', true)
       
       try {
         if (requiereSegunda) {
           // Actualizar estado y mover a no programables
-          await updatePaciente(pacienteId, { 
+          await updatePaciente(paciente.id, { 
             estado: 'noProgPartesBlandas',
             fechaPrimeraCirugia: new Date().toISOString().slice(0, 10),
             motivo: 'Pendiente evaluación post-cirugía'
-          })
+          });
           
-          // Eliminar de urgentes y actualizar ambas listas
-          commit('eliminarPacienteUrgente', pacienteId)
-          await dispatch('fetchPacientesNoProgPartesBlandas')
+          // Buscar índice del paciente en urgentes
+          const index = this.state.pacientesUrgentes.findIndex(p => p.id === paciente.id);
+          if (index !== -1) {
+            // Eliminar de urgentes
+            commit('eliminarPacienteUrgente', index);
+          } else {
+            console.error("No se encontró el paciente en la lista de urgentes:", paciente.id);
+          }
+          
+          // Actualizar lista de no programables
+          await dispatch('fetchPacientesNoProgPartesBlandas');
         } else {
           // Marcar como operado y archivar
-          await updatePaciente(pacienteId, { estado: 'operado', fechaOperacion: new Date() })
-          commit('eliminarPacienteUrgente', pacienteId)
+          await updatePaciente(paciente.id, { 
+            estado: 'operado', 
+            fechaOperacion: new Date().toISOString() 
+          });
+          
+          // Buscar índice del paciente en urgentes
+          const index = this.state.pacientesUrgentes.findIndex(p => p.id === paciente.id);
+          if (index !== -1) {
+            // Eliminar de urgentes
+            commit('eliminarPacienteUrgente', index);
+          } else {
+            console.error("No se encontró el paciente en la lista de urgentes:", paciente.id);
+          }
         }
       } catch (error) {
         commit('setError', error.message)
@@ -351,103 +371,150 @@ export default createStore({
       }
     },
     
-    async moverAPendientes({ commit, dispatch }, { pacienteId, origen }) {
+    async moverAPendientes({ commit, dispatch }, { paciente, origen }) {
+      console.log("Moviendo paciente a pendientes:", paciente, "desde", origen);
       commit('setLoading', true)
       
       try {
-        // Actualizar estado del paciente
-        await updatePaciente(pacienteId, { 
+        // Actualizar estado del paciente en la base de datos
+        await updatePaciente(paciente.id, { 
           estado: 'pendiente',
           fechaListoParaProgramar: new Date().toISOString()
-        })
+        });
         
-        // Eliminar de la lista original
+        // Actualizar el estado local según el origen
         if (origen === 'presentar') {
-          commit('eliminarPacientePresentar', pacienteId)
+          // Buscar el índice del paciente en la lista de presentar
+          const index = this.state.pacientesPresentar.findIndex(p => p.id === paciente.id);
+          if (index !== -1) {
+            // Eliminarlo de la lista de presentar
+            commit('eliminarPacientePresentar', index);
+          } else {
+            console.error("No se encontró el paciente en la lista de presentar:", paciente.id);
+          }
         } else if (origen === 'noProgMedicacion') {
-          commit('eliminarPacienteNoProgMedicacion', pacienteId)
+          // Buscar el índice del paciente en la lista de no programables por medicación
+          const index = this.state.pacientesNoProgMedicacion.findIndex(p => p.id === paciente.id);
+          if (index !== -1) {
+            // Eliminarlo de la lista de no programables por medicación
+            commit('eliminarPacienteNoProgMedicacion', index);
+          } else {
+            console.error("No se encontró el paciente en la lista de no programables por medicación:", paciente.id);
+          }
         } else if (origen === 'noProgPartesBlandas') {
-          commit('eliminarPacienteNoProgPartesBlandas', pacienteId)
+          // Buscar el índice del paciente en la lista de no programables por partes blandas
+          const index = this.state.pacientesNoProgPartesBlandas.findIndex(p => p.id === paciente.id);
+          if (index !== -1) {
+            // Eliminarlo de la lista de no programables por partes blandas
+            commit('eliminarPacienteNoProgPartesBlandas', index);
+          } else {
+            console.error("No se encontró el paciente en la lista de no programables por partes blandas:", paciente.id);
+          }
         }
         
         // Actualizar lista de pendientes
-        await dispatch('fetchPacientesPendientes')
+        await dispatch('fetchPacientesPendientes');
       } catch (error) {
         commit('setError', error.message)
         console.error("Error al mover paciente a pendientes:", error)
+        throw error;
       } finally {
         commit('setLoading', false)
       }
     },
     
     async moverANoProgramables({ commit, dispatch }, { paciente, tipo }) {
+      console.log("Moviendo paciente a no programables:", paciente, "tipo:", tipo);
       commit('setLoading', true)
       
       try {
         if (tipo === 'medicacion') {
           // Determinar tiempo restante según medicación
-          let tiempoRestante = 0
-          let medicacionNombre = ''
+          let tiempoRestante = 0;
+          let medicacionNombre = '';
           
           // Antiagregantes
           if (paciente.medicacion?.aas) {
-            tiempoRestante = 144 // 6 días en horas (promedio 5-7 días)
-            medicacionNombre = 'Ácido Acetilsalicílico'
+            tiempoRestante = 144; // 6 días en horas (promedio 5-7 días)
+            medicacionNombre = 'Ácido Acetilsalicílico';
           } else if (paciente.medicacion?.clopidogrel) {
-            tiempoRestante = 144 // 6 días en horas
-            medicacionNombre = 'Clopidogrel'
+            tiempoRestante = 144; // 6 días en horas
+            medicacionNombre = 'Clopidogrel';
           } else if (paciente.medicacion?.prasugrel) {
-            tiempoRestante = 204 // 8.5 días en horas
-            medicacionNombre = 'Prasugrel'
+            tiempoRestante = 204; // 8.5 días en horas
+            medicacionNombre = 'Prasugrel';
           } else if (paciente.medicacion?.ticagrelor) {
-            tiempoRestante = 120 // 5 días en horas
-            medicacionNombre = 'Ticagrelor'
+            tiempoRestante = 120; // 5 días en horas
+            medicacionNombre = 'Ticagrelor';
           } 
           // Anticoagulantes
           else if (paciente.medicacion?.warfarina) {
-            tiempoRestante = 120 // 5 días en horas
-            medicacionNombre = 'Warfarina'
+            tiempoRestante = 120; // 5 días en horas
+            medicacionNombre = 'Warfarina';
           } else if (paciente.medicacion?.dabigatran) {
-            tiempoRestante = 48 // 2 días en horas
-            medicacionNombre = 'Dabigatrán'
+            tiempoRestante = 48; // 2 días en horas
+            medicacionNombre = 'Dabigatrán';
           } else if (paciente.medicacion?.rivaroxaban) {
-            tiempoRestante = 48 // 2 días en horas
-            medicacionNombre = 'Rivaroxabán'
+            tiempoRestante = 48; // 2 días en horas
+            medicacionNombre = 'Rivaroxabán';
           } else if (paciente.medicacion?.apixaban) {
-            tiempoRestante = 48 // 2 días en horas
-            medicacionNombre = 'Apixabán'
+            tiempoRestante = 48; // 2 días en horas
+            medicacionNombre = 'Apixabán';
           } 
           // Otros
           else if (paciente.medicacion?.hbpm) {
-            tiempoRestante = 12 // 12 horas
-            medicacionNombre = 'HBPM'
+            tiempoRestante = 12; // 12 horas
+            medicacionNombre = 'HBPM';
           }
           
+          // Actualizar el paciente
           await updatePaciente(paciente.id, {
             estado: 'noProgMedicacion',
             medicacion: medicacionNombre,
             tiempoRestante: tiempoRestante,
             fechaProyectadaDisponible: new Date(Date.now() + tiempoRestante * 60 * 60 * 1000).toISOString()
-          })
+          });
           
-          // Actualizar listas
-          commit('eliminarPacientePresentar', paciente.id)
-          await dispatch('fetchPacientesNoProgMedicacion')
+          // Encontrar el índice para eliminarlo de la lista de presentar
+          const index = this.state.pacientesPresentar.findIndex(p => p.id === paciente.id);
+          if (index !== -1) {
+            // Eliminarlo de la lista de presentar
+            commit('eliminarPacientePresentar', index);
+          } else {
+            console.error("No se encontró el paciente en la lista de presentar:", paciente.id);
+          }
+          
+          // Actualizar lista de no programables
+          await dispatch('fetchPacientesNoProgMedicacion');
         } 
         else if (tipo === 'partesBlandas') {
           await updatePaciente(paciente.id, {
             estado: 'noProgPartesBlandas',
             fechaPrimeraCirugia: new Date().toISOString().slice(0, 10),
             motivo: paciente.motivo || 'Pendiente de evaluación'
-          })
+          });
           
-          // Actualizar listas
-          commit('eliminarPacientePresentar', paciente.id)
-          await dispatch('fetchPacientesNoProgPartesBlandas')
+          // Encontrar el índice para eliminarlo de la lista de presentar o urgentes
+          const indexPresentar = this.state.pacientesPresentar.findIndex(p => p.id === paciente.id);
+          const indexUrgentes = this.state.pacientesUrgentes.findIndex(p => p.id === paciente.id);
+          
+          if (indexPresentar !== -1) {
+            // Eliminarlo de la lista de presentar
+            commit('eliminarPacientePresentar', indexPresentar);
+          } else if (indexUrgentes !== -1) {
+            // Eliminarlo de la lista de urgentes
+            commit('eliminarPacienteUrgente', indexUrgentes);
+          } else {
+            console.error("No se encontró el paciente en ninguna lista:", paciente.id);
+          }
+          
+          // Actualizar lista de no programables
+          await dispatch('fetchPacientesNoProgPartesBlandas');
         }
       } catch (error) {
         commit('setError', error.message)
         console.error("Error al mover paciente a no programables:", error)
+        throw error;
       } finally {
         commit('setLoading', false)
       }
@@ -668,82 +735,81 @@ export default createStore({
               // Caso especial: si solo queda 1 pertrocantérea
               const paciente = pertrocantereas.shift()
               nuevoCalendario[dia].tarde[q].slots[0] = paciente
-              if (paciente) {
-                await updatePaciente(paciente.id, { 
-                  estado: 'programado', 
-                  diaOperacion: dia, 
-                  turnoOperacion: 'tarde', 
-                  quirofanoOperacion: q,
-                  slotOperacion: 0
-                })
-              }
-            }
-          }
-
-          // PARTE 2: Turno de mañana - resto de pacientes (no fracturas de cadera)
-          const quirofanosManana = state.configuracion[dia].manana
-
-          // Inicializar quirófanos con slots
-          for (let q = 0; q < quirofanosManana; q++) {
-            nuevoCalendario[dia].manana.push({
-              slots: [null, null, null]
-            })
-
-            // Asignar otros pacientes a la mañana (no fracturas de cadera)
-            if (otrosPacientes.length > 0) {
-              // Intentar llenar los slots con otros pacientes
-              for (let slot = 0; slot < 3 && otrosPacientes.length > 0; slot++) {
-                const paciente = otrosPacientes.shift()
-                nuevoCalendario[dia].manana[q].slots[slot] = paciente
-                if (paciente) {
-                  await updatePaciente(paciente.id, { 
-                    estado: 'programado', 
-                    diaOperacion: dia, 
-                    turnoOperacion: 'manana', 
-                    quirofanoOperacion: q,
-                    slotOperacion: slot
-                  })
-                }
-              }
+              if (paciente) {await updatePaciente(paciente.id, { 
+                estado: 'programado', 
+                diaOperacion: dia, 
+                turnoOperacion: 'tarde', 
+                quirofanoOperacion: q,
+                slotOperacion: 0
+              })
             }
           }
         }
 
-        // Los pacientes que no se pudieron asignar se quedan en las listas
-        // y seguirán apareciendo como pendientes
+        // PARTE 2: Turno de mañana - resto de pacientes (no fracturas de cadera)
+        const quirofanosManana = state.configuracion[dia].manana
 
-        // Actualizar el calendario en la base de datos
-        await updateCalendario('actual', nuevoCalendario)
-        
-        // Actualizar el estado local
-        commit('actualizarCalendario', nuevoCalendario)
-        
-        // Recargar pacientes pendientes (los que quedaron sin asignar y los nuevos)
-        await dispatch('fetchPacientesPendientes')
-      } catch (error) {
-        commit('setError', error.message)
-        console.error("Error al ejecutar algoritmo:", error)
-      } finally {
-        commit('setLoading', false)
+        // Inicializar quirófanos con slots
+        for (let q = 0; q < quirofanosManana; q++) {
+          nuevoCalendario[dia].manana.push({
+            slots: [null, null, null]
+          })
+
+          // Asignar otros pacientes a la mañana (no fracturas de cadera)
+          if (otrosPacientes.length > 0) {
+            // Intentar llenar los slots con otros pacientes
+            for (let slot = 0; slot < 3 && otrosPacientes.length > 0; slot++) {
+              const paciente = otrosPacientes.shift()
+              nuevoCalendario[dia].manana[q].slots[slot] = paciente
+              if (paciente) {
+                await updatePaciente(paciente.id, { 
+                  estado: 'programado', 
+                  diaOperacion: dia, 
+                  turnoOperacion: 'manana', 
+                  quirofanoOperacion: q,
+                  slotOperacion: slot
+                })
+              }
+            }
+          }
+        }
       }
-    },
-    
-    // Resetear semana
-    async resetSemana({ commit, dispatch }) {
-      commit('setLoading', true)
+
+      // Los pacientes que no se pudieron asignar se quedan en las listas
+      // y seguirán apareciendo como pendientes
+
+      // Actualizar el calendario en la base de datos
+      await updateCalendario('actual', nuevoCalendario)
       
-      try {
-        // Esta función moverá pacientes programados a histórico y limpiará el calendario
-        await resetSemana()
-        
-        // Recargar los datos
-        await dispatch('fetchInitialData')
-      } catch (error) {
-        commit('setError', error.message)
-        console.error("Error al resetear semana:", error)
-      } finally {
-        commit('setLoading', false)
-      }
+      // Actualizar el estado local
+      commit('actualizarCalendario', nuevoCalendario)
+      
+      // Recargar pacientes pendientes (los que quedaron sin asignar y los nuevos)
+      await dispatch('fetchPacientesPendientes')
+    } catch (error) {
+      commit('setError', error.message)
+      console.error("Error al ejecutar algoritmo:", error)
+    } finally {
+      commit('setLoading', false)
+    }
+  },
+  
+  // Resetear semana
+  async resetSemana({ commit, dispatch }) {
+    commit('setLoading', true)
+    
+    try {
+      // Esta función moverá pacientes programados a histórico y limpiará el calendario
+      await resetSemana()
+      
+      // Recargar los datos
+      await dispatch('fetchInitialData')
+    } catch (error) {
+      commit('setError', error.message)
+      console.error("Error al resetear semana:", error)
+    } finally {
+      commit('setLoading', false)
     }
   }
+}
 })

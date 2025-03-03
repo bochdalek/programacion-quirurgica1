@@ -151,7 +151,7 @@
                   </span>
                 </td>
                 <td class="py-2 px-3">
-                  <button @click="operarPaciente(paciente, index)" class="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600 mr-1">
+                  <button @click="operarPaciente(paciente)" class="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600 mr-1">
                     Operar
                   </button>
                   <button @click="marcarOrtopedicoUrgente(paciente, index)" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600 mr-1">
@@ -255,23 +255,23 @@ export default {
       
       alert('Paciente registrado correctamente');
     },
-    operarPaciente(paciente, index) {
+    operarPaciente(paciente) {
       if (confirm(`¿Confirma que va a operar a ${paciente.nombre}?`)) {
-        // Aquí se implementaría la lógica para registrar la operación
-        // y posiblemente mover el paciente a otra lista si requiere segunda intervención
-        alert(`${paciente.nombre} ha sido registrado para cirugía inmediata.`);
+        // Implementar la lógica para registrar la operación
+        console.log("Operando paciente urgente:", paciente);
         
         // Preguntar si requiere segunda intervención
-        if (confirm('¿Requiere segunda intervención por mal estado de partes blandas u otros factores?')) {
-          // Mover a no programables
-          this.$store.commit('moverANoProgramables', {
-            paciente: paciente,
-            tipo: 'partesBlandas'
-          });
-        }
+        const requiereSegunda = confirm('¿Requiere segunda intervención por mal estado de partes blandas u otros factores?');
         
-        // Eliminar de la lista de urgentes
-        this.$store.commit('eliminarPacienteUrgente', index);
+        // Llamar a la acción correspondiente
+        this.$store.dispatch('operarPacienteUrgente', {
+          paciente: paciente, 
+          requiereSegunda: requiereSegunda
+        }).then(() => {
+          alert(`${paciente.nombre} ha sido ${requiereSegunda ? 'registrado para seguimiento posterior' : 'registrado como operado'}.`);
+        }).catch(error => {
+          alert(`Error al registrar operación: ${error.message}`);
+        });
       }
     },
     marcarOrtopedicoUrgente(paciente, index) {

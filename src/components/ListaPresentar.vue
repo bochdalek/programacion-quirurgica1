@@ -176,10 +176,19 @@ export default {
   methods: {
     moverAPendientes(paciente) {
       if (confirm(`¿Confirma mover a ${paciente.nombre} a la lista de pendientes de cirugía programada?`)) {
-        this.$store.commit('moverAPendientes', { paciente, origen: 'presentar' });
-        alert(`${paciente.nombre} ha sido movido a la lista de pendientes.`);
+        console.log("Enviando paciente a pendientes desde presentar:", paciente);
+        // Es importante enviar el objeto paciente completo, no solo el ID
+        this.$store.dispatch('moverAPendientes', { 
+          paciente: paciente, 
+          origen: 'presentar' 
+        }).then(() => {
+          alert(`${paciente.nombre} ha sido movido a la lista de pendientes.`);
+        }).catch(error => {
+          alert(`Error al mover paciente: ${error.message}`);
+        });
       }
     },
+    
     abrirModalMedicacion(paciente) {
       this.pacienteSeleccionado = paciente;
       
@@ -207,10 +216,12 @@ export default {
       
       this.mostrarModalMedicacion = true;
     },
+    
     cancelarMedicacion() {
       this.mostrarModalMedicacion = false;
       this.pacienteSeleccionado = null;
     },
+    
     confirmarMedicacion() {
       if (!this.pacienteSeleccionado) return;
       
@@ -229,25 +240,30 @@ export default {
       };
       
       // Mover a no programables por medicación
-      this.$store.commit('moverANoProgramables', { 
+      console.log("Enviando paciente a no programables por medicación:", pacienteActualizado);
+      this.$store.dispatch('moverANoProgramables', { 
         paciente: pacienteActualizado, 
         tipo: 'medicacion' 
+      }).then(() => {
+        alert(`${pacienteActualizado.nombre} ha sido movido a la lista de no programables por medicación.`);
+      }).catch(error => {
+        alert(`Error al mover paciente: ${error.message}`);
       });
-      
-      alert(`${pacienteActualizado.nombre} ha sido movido a la lista de no programables por medicación.`);
       
       this.mostrarModalMedicacion = false;
       this.pacienteSeleccionado = null;
     },
+    
     moverANoProgramables(paciente) {
       const motivo = prompt(`Indique el motivo por el que ${paciente.nombre} no es programable:`, 'Medicación');
       
       if (motivo) {
         const tipo = motivo.toLowerCase().includes('medic') ? 'medicacion' : 'partesBlandas';
-        this.$store.commit('moverANoProgramables', { paciente, tipo });
+        this.$store.dispatch('moverANoProgramables', { paciente, tipo });
         alert(`${paciente.nombre} ha sido movido a la lista de no programables.`);
       }
     },
+    
     marcarOrtopedico(paciente, index) {
       if (confirm(`¿Confirma que el paciente ${paciente.nombre} recibirá tratamiento ortopédico y no requiere cirugía?`)) {
         // Eliminar el paciente de la lista de presentar
@@ -255,6 +271,7 @@ export default {
         alert(`${paciente.nombre} ha sido marcado como tratamiento ortopédico y eliminado de la lista.`);
       }
     },
+    
     verDetalles(paciente) {
       let detalles = `Nombre: ${paciente.nombre}\nEdad: ${paciente.edad}\nTipo de fractura: ${paciente.tipoFractura}`;
       

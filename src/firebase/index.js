@@ -11,6 +11,31 @@ import {
 } from 'firebase/auth'
 import { firebaseConfig } from './config'
 
+// Funciones de simulación para almacenamiento local (solo para desarrollo)
+const simulateLocalStorage = (process.env.NODE_ENV !== 'production');
+
+// Funciones de ayuda para localStorage
+const getLocalCollection = (collectionName) => {
+  try {
+    return JSON.parse(localStorage.getItem(`dev_${collectionName}`) || '[]');
+  } catch (error) {
+    console.error(`Error al leer colección ${collectionName} de localStorage:`, error);
+    return [];
+  }
+};
+
+const saveLocalCollection = (collectionName, data) => {
+  try {
+    localStorage.setItem(`dev_${collectionName}`, JSON.stringify(data));
+  } catch (error) {
+    console.error(`Error al guardar colección ${collectionName} en localStorage:`, error);
+  }
+};
+
+const generateId = () => {
+  return 'dev-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+};
+
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
@@ -119,6 +144,27 @@ const getUserData = async (uid) => {
 // Métodos para la configuración
 const getConfiguracion = async () => {
   try {
+    if (simulateLocalStorage) {
+      console.log('[DEV] Obteniendo configuración desde localStorage');
+      const configData = getLocalCollection('configuracion');
+      // Si no hay configuración, devolver configuración por defecto
+      if (configData.length === 0) {
+        const defaultConfig = [
+          { manana: 2, tarde: 2 },
+          { manana: 2, tarde: 2 },
+          { manana: 2, tarde: 2 },
+          { manana: 2, tarde: 2 },
+          { manana: 2, tarde: 2 },
+          { manana: 1, tarde: 1 },
+          { manana: 1, tarde: 1 }
+        ];
+        // Guardar configuración por defecto
+        saveLocalCollection('configuracion', defaultConfig);
+        return defaultConfig;
+      }
+      return configData;
+    }
+
     const configSnapshot = await getDocs(configuracionCollection)
     const config = {}
     
@@ -135,6 +181,13 @@ const getConfiguracion = async () => {
 
 const updateConfiguracion = async (id, data) => {
   try {
+    if (simulateLocalStorage) {
+      console.log(`[DEV] Actualizando configuración en localStorage`);
+      // Simplemente guardar la configuración directamente
+      saveLocalCollection('configuracion', data);
+      return true;
+    }
+
     await setDoc(doc(configuracionCollection, id), { 
       ...data, 
       updatedAt: serverTimestamp() 
@@ -149,6 +202,13 @@ const updateConfiguracion = async (id, data) => {
 // Métodos para pacientes
 const getPacientesByEstado = async (estado) => {
   try {
+    if (simulateLocalStorage) {
+      console.log(`[DEV] Obteniendo pacientes con estado: ${estado} desde localStorage`);
+      const pacientes = getLocalCollection('pacientes');
+      return pacientes.filter(p => p.estado === estado);
+    }
+
+    // Código original para Firebase
     const q = query(pacientesCollection, where("estado", "==", estado))
     const querySnapshot = await getDocs(q)
     const pacientes = []
@@ -171,6 +231,26 @@ const getPacientesByEstado = async (estado) => {
 
 const addPaciente = async (pacienteData) => {
   try {
+    if (simulateLocalStorage) {
+      console.log('[DEV] Añadiendo paciente a localStorage:', pacienteData);
+      const pacientes = getLocalCollection('pacientes');
+      const id = generateId();
+      const timestamp = new Date().toISOString();
+      
+      const newPaciente = {
+        ...pacienteData,
+        id,
+        fechaIngreso: timestamp,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      };
+      
+      pacientes.push(newPaciente);
+      saveLocalCollection('pacientes', pacientes);
+      return id;
+    }
+
+    // Código original para Firebase
     const docRef = doc(pacientesCollection)
     
     await setDoc(docRef, {
@@ -189,6 +269,26 @@ const addPaciente = async (pacienteData) => {
 
 const updatePaciente = async (id, data) => {
   try {
+    if (simulateLocalStorage) {
+      console.log(`[DEV] Actualizando paciente ${id} en localStorage:`, data);
+      const pacientes = getLocalCollection('pacientes');
+      const index = pacientes.findIndex(p => p.id === id);
+      
+      if (index >= 0) {
+        pacientes[index] = {
+          ...pacientes[index],
+          ...data,
+          updatedAt: new Date().toISOString()
+        };
+        saveLocalCollection('pacientes', pacientes);
+        return true;
+      } else {
+        console.error(`No se encontró paciente con id ${id} para actualizar`);
+        throw new Error(`Paciente no encontrado: ${id}`);
+      }
+    }
+
+    // Código original para Firebase
     await updateDoc(doc(pacientesCollection, id), {
       ...data,
       updatedAt: serverTimestamp()
@@ -202,6 +302,15 @@ const updatePaciente = async (id, data) => {
 
 const deletePaciente = async (id) => {
   try {
+    if (simulateLocalStorage) {
+      console.log(`[DEV] Eliminando paciente ${id} de localStorage`);
+      const pacientes = getLocalCollection('pacientes');
+      const newPacientes = pacientes.filter(p => p.id !== id);
+      saveLocalCollection('pacientes', newPacientes);
+      return true;
+    }
+
+    // Código original para Firebase
     await deleteDoc(doc(pacientesCollection, id))
     return true
   } catch (error) {
@@ -213,6 +322,12 @@ const deletePaciente = async (id) => {
 // Métodos para el calendario
 const getCalendarioSemanal = async () => {
   try {
+    if (simulateLocalStorage) {
+      console.log('[DEV] Obteniendo calendario desde localStorage');
+      return getLocalCollection('calendario');
+    }
+
+    // Código original para Firebase
     const calendarSnapshot = await getDocs(calendarioCollection)
     const calendario = []
     
@@ -232,6 +347,31 @@ const getCalendarioSemanal = async () => {
 
 const updateCalendario = async (id, data) => {
   try {
+    if (simulateLocalStorage) {
+      console.log(`[DEV] Actualizando calendario ${id} en localStorage`);
+      const calendario = getLocalCollection('calendario');
+      const index = calendario.findIndex(c => c.id === id);
+      
+      if (index >= 0) {
+        calendario[index] = {
+          ...calendario[index],
+          ...data,
+          updatedAt: new Date().toISOString()
+        };
+      } else {
+        calendario.push({
+          id,
+          ...data,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      saveLocalCollection('calendario', calendario);
+      return true;
+    }
+
+    // Código original para Firebase
     await setDoc(doc(calendarioCollection, id), {
       ...data,
       updatedAt: serverTimestamp()
@@ -245,7 +385,34 @@ const updateCalendario = async (id, data) => {
 
 const resetSemana = async () => {
   try {
-    // Mover pacientes programados a histórico
+    if (simulateLocalStorage) {
+      console.log('[DEV] Reseteando semana en localStorage');
+      
+      // Obtener pacientes programados
+      const pacientes = getLocalCollection('pacientes');
+      const programados = pacientes.filter(p => p.estado === 'programado');
+      
+      // Moverlos al histórico
+      const historico = getLocalCollection('historico');
+      const pacientesActualizados = pacientes.filter(p => p.estado !== 'programado');
+      
+      programados.forEach(p => {
+        historico.push({
+          ...p,
+          fechaArchivado: new Date().toISOString(),
+          semanaArchivado: new Date().toISOString().slice(0, 10)
+        });
+      });
+      
+      // Limpiar calendario
+      saveLocalCollection('pacientes', pacientesActualizados);
+      saveLocalCollection('historico', historico);
+      saveLocalCollection('calendario', []);
+      
+      return true;
+    }
+
+    // Código original para Firebase
     const programadosQuery = query(pacientesCollection, where("estado", "==", "programado"))
     const programadosSnapshot = await getDocs(programadosQuery)
     
@@ -282,6 +449,60 @@ const resetSemana = async () => {
     console.error("Error al resetear semana:", error)
     throw error
   }
+}
+
+// Añadir función para inicializar localStorage con datos de ejemplo (opcional)
+const initializeLocalStorage = () => {
+  if (!simulateLocalStorage) return;
+  
+  // Verificar si ya hay datos
+  const pacientes = getLocalCollection('pacientes');
+  if (pacientes.length > 0) return;
+  
+  // Datos de ejemplo para desarrollo
+  const ejemploPacientes = [
+    {
+      id: 'example-1',
+      nombre: 'Juan Pérez',
+      edad: 68,
+      tipoFractura: 'Cadera - Pertrocantérea',
+      detallesFractura: 'Lado derecho',
+      estadoClinico: 'Estable, hipertensión controlada',
+      fechaIngreso: new Date().toISOString(),
+      estado: 'pendiente',
+      medicacion: {}
+    },
+    {
+      id: 'example-2',
+      nombre: 'María Rodríguez',
+      edad: 75,
+      tipoFractura: 'Cadera - Subcapital',
+      detallesFractura: 'Lado izquierdo',
+      estadoClinico: 'Diabetes tipo 2',
+      fechaIngreso: new Date(Date.now() - 86400000).toISOString(), // Ayer
+      estado: 'urgente',
+      medicacion: {}
+    },
+    {
+      id: 'example-3',
+      nombre: 'Carlos Gómez',
+      edad: 62,
+      tipoFractura: 'Cadera - Pertrocantérea',
+      detallesFractura: 'Conminuta',
+      estadoClinico: 'Estable',
+      fechaIngreso: new Date(Date.now() - 172800000).toISOString(), // Hace 2 días
+      estado: 'presentar',
+      medicacion: {}
+    }
+  ];
+  
+  saveLocalCollection('pacientes', ejemploPacientes);
+  console.log('[DEV] localStorage inicializado con datos de ejemplo');
+};
+
+// Llamar a esta función cuando se inicie la aplicación
+if (process.env.NODE_ENV !== 'production') {
+  initializeLocalStorage();
 }
 
 export {
