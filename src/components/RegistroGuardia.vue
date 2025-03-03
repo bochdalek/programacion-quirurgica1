@@ -223,13 +223,30 @@ export default {
       // Hacer una copia profunda para evitar problemas de referencia
       const paciente = JSON.parse(JSON.stringify(this.nuevoPaciente));
       
-      if (paciente.urgencia === 'urgente') {
-        this.$store.commit('agregarPacienteUrgente', paciente);
-      } else {
-        this.$store.commit('agregarPacientePresentar', paciente);
-      }
+      // Asignar un ID temporal para desarrollo local
+      paciente.id = 'temp-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
       
-      // Resetear el formulario
+      if (paciente.urgencia === 'urgente') {
+        this.$store.dispatch('addPacienteUrgente', paciente).then(() => {
+          // Resetear el formulario
+          this.resetearFormulario();
+          alert('Paciente urgente registrado correctamente');
+        }).catch(error => {
+          alert(`Error al registrar paciente: ${error.message}`);
+        });
+      } else {
+        this.$store.dispatch('addPacientePresentar', paciente).then(() => {
+          // Resetear el formulario
+          this.resetearFormulario();
+          alert('Paciente registrado correctamente para presentar');
+        }).catch(error => {
+          alert(`Error al registrar paciente: ${error.message}`);
+        });
+      }
+    },
+    
+    // Método para resetear el formulario
+    resetearFormulario() {
       this.nuevoPaciente = {
         nombre: '',
         edad: null,
@@ -252,9 +269,8 @@ export default {
         },
         urgencia: 'noUrgente'
       };
-      
-      alert('Paciente registrado correctamente');
     },
+    
     operarPaciente(paciente) {
       if (confirm(`¿Confirma que va a operar a ${paciente.nombre}?`)) {
         // Implementar la lógica para registrar la operación
@@ -274,6 +290,7 @@ export default {
         });
       }
     },
+    
     marcarOrtopedicoUrgente(paciente, index) {
       if (confirm(`¿Confirma que el paciente ${paciente.nombre} recibirá tratamiento ortopédico y no requiere cirugía?`)) {
         // Eliminar de la lista de urgentes
@@ -281,6 +298,7 @@ export default {
         alert(`${paciente.nombre} ha sido marcado como tratamiento ortopédico y eliminado de la lista.`);
       }
     },
+    
     verDetallesPaciente(paciente) {
       let detalles = `Nombre: ${paciente.nombre}\nEdad: ${paciente.edad}\nTipo de fractura: ${paciente.tipoFractura}`;
       

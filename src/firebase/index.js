@@ -231,23 +231,28 @@ const getPacientesByEstado = async (estado) => {
 
 const addPaciente = async (pacienteData) => {
   try {
+    // Verificar que el paciente tiene todos los datos necesarios
+    if (!pacienteData.nombre || !pacienteData.tipoFractura) {
+      console.error("Error: Datos de paciente incompletos:", pacienteData);
+      throw new Error("Datos de paciente incompletos");
+    }
+
     if (simulateLocalStorage) {
       console.log('[DEV] Añadiendo paciente a localStorage:', pacienteData);
       const pacientes = getLocalCollection('pacientes');
-      const id = generateId();
-      const timestamp = new Date().toISOString();
       
-      const newPaciente = {
+      // Asegurar que el paciente tiene un ID
+      const pacienteConId = { 
         ...pacienteData,
-        id,
-        fechaIngreso: timestamp,
-        createdAt: timestamp,
-        updatedAt: timestamp
+        id: pacienteData.id || generateId(), // Usar el ID existente o generar uno nuevo
+        fechaIngreso: pacienteData.fechaIngreso || new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
-      pacientes.push(newPaciente);
+      pacientes.push(pacienteConId);
       saveLocalCollection('pacientes', pacientes);
-      return id;
+      return pacienteConId.id;
     }
 
     // Código original para Firebase
@@ -269,6 +274,12 @@ const addPaciente = async (pacienteData) => {
 
 const updatePaciente = async (id, data) => {
   try {
+    // Validar que el ID no esté vacío
+    if (!id) {
+      console.error("Error: ID de paciente no válido para actualización:", id);
+      throw new Error("ID de paciente no válido");
+    }
+
     if (simulateLocalStorage) {
       console.log(`[DEV] Actualizando paciente ${id} en localStorage:`, data);
       const pacientes = getLocalCollection('pacientes');
@@ -302,10 +313,23 @@ const updatePaciente = async (id, data) => {
 
 const deletePaciente = async (id) => {
   try {
+    // Validar que el ID no esté vacío
+    if (!id) {
+      console.error("Error: ID de paciente no válido para eliminar:", id);
+      throw new Error("ID de paciente no válido");
+    }
+    
     if (simulateLocalStorage) {
       console.log(`[DEV] Eliminando paciente ${id} de localStorage`);
       const pacientes = getLocalCollection('pacientes');
       const newPacientes = pacientes.filter(p => p.id !== id);
+      
+      // Verificar que realmente se eliminó un paciente
+      if (newPacientes.length === pacientes.length) {
+        console.error(`No se encontró paciente con id ${id} para eliminar`);
+        throw new Error(`Paciente no encontrado: ${id}`);
+      }
+      
       saveLocalCollection('pacientes', newPacientes);
       return true;
     }
@@ -347,6 +371,12 @@ const getCalendarioSemanal = async () => {
 
 const updateCalendario = async (id, data) => {
   try {
+    // Validar que el ID no esté vacío
+    if (!id) {
+      console.error("Error: ID de calendario no válido para actualización:", id);
+      throw new Error("ID de calendario no válido");
+    }
+    
     if (simulateLocalStorage) {
       console.log(`[DEV] Actualizando calendario ${id} en localStorage`);
       const calendario = getLocalCollection('calendario');
