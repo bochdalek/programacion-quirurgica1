@@ -40,7 +40,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(paciente, index) in pacientesPresentar" :key="index" class="border-b hover:bg-gray-50">
+          <tr v-for="(paciente, index) in safePacientesPresentar" :key="index" class="border-b hover:bg-gray-50">
             <td class="py-2 px-3">{{ paciente.nombre }}</td>
             <td class="py-2 px-3">{{ paciente.edad }}</td>
             <td class="py-2 px-3">
@@ -66,7 +66,7 @@
               </button>
             </td>
           </tr>
-          <tr v-if="pacientesPresentar.length === 0">
+          <tr v-if="safePacientesPresentar.length === 0">
             <td colspan="6" class="py-4 text-center text-gray-500">No hay pacientes para presentar</td>
           </tr>
         </tbody>
@@ -171,7 +171,10 @@ export default {
     }
   },
   computed: {
-    ...mapState(['pacientesPresentar'])
+    ...mapState(['pacientesPresentar']),
+    safePacientesPresentar() {
+      return this.pacientesPresentar || [];
+    }
   },
   methods: {
     moverAPendientes(paciente) {

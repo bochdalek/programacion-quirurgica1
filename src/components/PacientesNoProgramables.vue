@@ -41,7 +41,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(paciente, index) in pacientesNoProgMedicacion" :key="index" class="border-b hover:bg-gray-50"
+              <tr v-for="(paciente, index) in safePacientesMedicacion" :key="index" class="border-b hover:bg-gray-50"
                   :class="{'bg-green-100': paciente.tiempoRestante <= 0}">
                 <td class="py-2 px-3">{{ paciente.nombre }}</td>
                 <td class="py-2 px-3">{{ paciente.medicacion }}</td>
@@ -60,7 +60,7 @@
                   </button>
                 </td>
               </tr>
-              <tr v-if="pacientesNoProgMedicacion.length === 0">
+              <tr v-if="safePacientesMedicacion.length === 0">
                 <td colspan="4" class="py-4 text-center text-gray-500">No hay pacientes con restricciones por medicación</td>
               </tr>
             </tbody>
@@ -82,7 +82,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(paciente, index) in pacientesNoProgPartesBlandas" :key="index" class="border-b hover:bg-gray-50">
+              <tr v-for="(paciente, index) in safePacientesPartesBlandas" :key="index" class="border-b hover:bg-gray-50">
                 <td class="py-2 px-3">{{ paciente.nombre }}</td>
                 <td class="py-2 px-3">{{ paciente.fechaPrimeraCirugia }}</td>
                 <td class="py-2 px-3">{{ paciente.motivo }}</td>
@@ -92,7 +92,7 @@
                   </button>
                 </td>
               </tr>
-              <tr v-if="pacientesNoProgPartesBlandas.length === 0">
+              <tr v-if="safePacientesPartesBlandas.length === 0">
                 <td colspan="4" class="py-4 text-center text-gray-500">No hay pacientes pendientes de segunda cirugía</td>
               </tr>
             </tbody>
@@ -115,7 +115,15 @@ export default {
     }
   },
   computed: {
-    ...mapState(['pacientesNoProgMedicacion', 'pacientesNoProgPartesBlandas'])
+    ...mapState(['pacientesNoProgMedicacion', 'pacientesNoProgPartesBlandas']),
+    
+    // Safe getters to ensure arrays are always defined
+    safePacientesMedicacion() {
+      return this.pacientesNoProgMedicacion || [];
+    },
+    safePacientesPartesBlandas() {
+      return this.pacientesNoProgPartesBlandas || [];
+    }
   },
   methods: {
     formatTiempoRestante(horas) {
@@ -192,25 +200,29 @@ export default {
   mounted() {
     // Establecer un temporizador que reduce el tiempo restante cada hora
     this.hourlyTimer = setInterval(() => {
-      this.pacientesNoProgMedicacion.forEach(paciente => {
-        if (paciente.tiempoRestante > 0) {
-          paciente.tiempoRestante -= 1;
-          
-          // Notificar cuando el tiempo llega a cero
-          if (paciente.tiempoRestante === 0) {
-            alert(`${paciente.nombre} ya ha cumplido el tiempo de restricción por ${paciente.medicacion} y puede ser programado.`);
+      if (this.safePacientesMedicacion) {
+        this.safePacientesMedicacion.forEach(paciente => {
+          if (paciente.tiempoRestante > 0) {
+            paciente.tiempoRestante -= 1;
+            
+            // Notificar cuando el tiempo llega a cero
+            if (paciente.tiempoRestante === 0) {
+              alert(`${paciente.nombre} ya ha cumplido el tiempo de restricción por ${paciente.medicacion} y puede ser programado.`);
+            }
           }
-        }
-      });
+        });
+      }
     }, 3600000); // 3,600,000 ms = 1 hora
     
     // Para demostración, reducir más rápido (cada 10 segundos para probar)
     this.demoTimer = setInterval(() => {
-      this.pacientesNoProgMedicacion.forEach(paciente => {
-        if (paciente.tiempoRestante > 0) {
-          paciente.tiempoRestante -= 1;
-        }
-      });
+      if (this.safePacientesMedicacion) {
+        this.safePacientesMedicacion.forEach(paciente => {
+          if (paciente.tiempoRestante > 0) {
+            paciente.tiempoRestante -= 1;
+          }
+        });
+      }
     }, 10000); // 10 segundos
   },
   beforeUnmount() {

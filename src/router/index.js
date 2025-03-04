@@ -1,4 +1,4 @@
-// src/router/index.js
+// src/router/index.js (fixed version)
 import { createRouter, createWebHistory } from 'vue-router'
 import store from '../store'
 
@@ -16,9 +16,24 @@ import InformesEstadisticos from '../components/InformesEstadisticos.vue'
 import PlanificacionQuirofanos from '../components/PlanificacionQuirofanos.vue'
 import AdministracionSistema from '../components/AdministracionSistema.vue'
 
-// Middleware para comprobar permiso específico - Versión simplificada sin delays
+// Variable global para asegurar que la autenticación esté completa
+let authInitialized = false;
+
+// Mejorado: Middleware para comprobar permiso específico con mejor manejo de auth
 const requirePermission = (permission) => {
   return (to, from, next) => {
+    // Si la autenticación no se ha completado, esperar brevemente
+    if (!authInitialized) {
+      console.log(`Esperando inicialización de autenticación para comprobar permiso: ${permission}`);
+      
+      // Esperar un tiempo prudente para que la autenticación se complete
+      setTimeout(() => {
+        requirePermission(permission)(to, from, next);
+      }, 100);
+      
+      return;
+    }
+    
     console.log(`Verificando permiso ${permission} para usuario:`, store.getters.currentUser);
     
     if (!store.getters.isAuthenticated) {
@@ -52,6 +67,22 @@ const routes = [
     name: 'home',
     meta: { requiresAuth: true },
     beforeEnter: (to, from, next) => {
+      // Si la autenticación no se ha completado, esperar brevemente
+      if (!authInitialized) {
+        console.log("Esperando inicialización de autenticación para redirección en ruta '/'");
+        
+        setTimeout(() => {
+          const currentRoute = router.currentRoute.value;
+          // Verificar si ya se ha navegado a otra ruta mientras esperábamos
+          if (currentRoute.path === '/') {
+            router.replace('/'); // Esto provocará que se revalúe esta ruta
+          }
+        }, 100);
+        
+        next();
+        return;
+      }
+
       console.log("Ruta / accedida, redirigiendo según rol");
       const userRole = store.getters.currentUser?.role;
       console.log("Rol de usuario para redirección:", userRole);
@@ -176,11 +207,51 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  // Evitar navegaciones durante la inicialización
+  async scrollBehavior(to, from, savedPosition) {
+    // Esperar a que la autenticación esté lista
+    if (!authInitialized) {
+      await new Promise(resolve => {
+        const checkAuth = () => {
+          if (authInitialized) {
+            resolve();
+          } else {
+            setTimeout(checkAuth, 50);
+          }
+        };
+        checkAuth();
+      });
+    }
+    
+    if (savedPosition) {
+      return savedPosition;
+    } else {
+      return { top: 0 };
+    }
+  }
 })
 
-// Protección global de rutas - Versión simplificada
-router.beforeEach((to, from, next) => {
+// Protección global de rutas - Versión mejorada
+router.beforeEach(async (to, from, next) => {
+  // Si la autenticación no está inicializada y esta no es la primera navegación, esperar
+  if (!authInitialized && from.name !== undefined) {
+    console.log("Esperando inicialización de autenticación antes de navegar a:", to.path);
+    
+    // Intentar esperar a que la autenticación esté lista (con timeout de seguridad)
+    let attemptCount = 0;
+    const maxAttempts = 10;
+    
+    while (!authInitialized && attemptCount < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      attemptCount++;
+    }
+    
+    if (!authInitialized) {
+      console.warn("Navegación continuada sin inicialización de autenticación después de esperar");
+    }
+  }
+  
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   const isAuthenticated = store.getters.isAuthenticated;
   
@@ -217,4 +288,11 @@ router.beforeEach((to, from, next) => {
   }
 });
 
-export default router
+// Método para marcar la autenticación como inicializada
+// Será llamado desde main.js después de que store.dispatch('initAuth') se complete
+router.markAuthInitialized = () => {
+  authInitialized = true;
+  console.log("Router: Autenticación marcada como inicializada");
+};
+
+export default router;

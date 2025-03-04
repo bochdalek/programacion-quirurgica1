@@ -1,4 +1,4 @@
-// src/main.js (actualizado)
+// src/main.js (fixed version)
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
@@ -8,7 +8,7 @@ import './index.css'
 // Importar Vuelidate correctamente
 import { useVuelidate } from '@vuelidate/core'
 
-// Configuración de logging mejorado
+// Inicialización de logging mejorado
 const setupDebugLogging = () => {
   // Solo aplica en ambiente de desarrollo
   if (process.env.NODE_ENV !== 'production') {
@@ -40,58 +40,37 @@ const setupDebugLogging = () => {
   }
 };
 
-// Configurar logging mejorado
-setupDebugLogging();
-
-console.log("Iniciando aplicación...");
-
-// Crear la aplicación Vue antes de cualquier otro proceso
-const app = createApp(App);
-
-// Registrar plugins
-app.use(router);
-app.use(store);
-// Proporcionar useVuelidate a la aplicación
-app.provide('useVuelidate', useVuelidate);
-
-// Directiva para focus en elementos
-app.directive('focus', {
-  mounted(el) {
-    el.focus();
-  }
-});
-
-// Directiva para click-fuera
-app.directive('click-outside', {
-  mounted(el, binding) {
-    el.clickOutsideEvent = function(event) {
-      if (!(el === event.target || el.contains(event.target))) {
-        binding.value(event);
-      }
-    };
-    document.body.addEventListener('click', el.clickOutsideEvent);
-  },
-  unmounted(el) {
-    document.body.removeEventListener('click', el.clickOutsideEvent);
-  }
-});
-
-// Variable para el timer de medicación
+// Variables para almacenar recursos globales
+let app = null;
 let medicacionTimer = null;
 
-// Configurar error handler global después de crear la app pero antes de montarla
+// Configurar error handler global
 const setupGlobalErrorHandler = () => {
+  // Evitamos múltiples registros del mismo manejador
+  if (window.appErrorHandlerRegistered) return;
+  
+  window.appErrorHandlerRegistered = true;
+  
   window.onerror = function(message, source, lineno, colno, error) {
     console.error(`Error global: ${message} en ${source}:${lineno}:${colno}`, error);
     
     try {
-      // Evitar notificaciones duplicadas
-      if (store.state.app && store.state.app.error !== message) {
-        store.commit('setError', message);
-        store.dispatch('notify', {
-          message: `Error: ${message}`,
-          type: 'error'
-        });
+      // Solo notificar si el error no es por componentes desmontados
+      if (message.indexOf('parentNode') === -1 && 
+          message.indexOf('unmounted') === -1 &&
+          message.indexOf('null') === -1) {
+        
+        // Notificar solo si el store ya está disponible
+        if (store && store.state && store.state.app) {
+          // Evitar notificaciones duplicadas
+          if (store.state.app.error !== message) {
+            store.commit('setError', message);
+            store.dispatch('notify', {
+              message: `Error: ${message}`,
+              type: 'error'
+            });
+          }
+        }
       }
     } catch (e) {
       console.error("Error al manejar el error global:", e);
@@ -105,28 +84,92 @@ const setupGlobalErrorHandler = () => {
     console.error('Promesa rechazada no manejada:', event.reason);
     
     try {
-      store.dispatch('notify', {
-        message: `Error asíncrono: ${event.reason?.message || 'Error desconocido'}`,
-        type: 'error'
-      });
+      if (store && store.dispatch) {
+        store.dispatch('notify', {
+          message: `Error asíncrono: ${event.reason?.message || 'Error desconocido'}`,
+          type: 'error'
+        });
+      }
     } catch (e) {
       console.error("Error al notificar una promesa rechazada:", e);
     }
   });
 };
 
-// Configurar error handler global
-setupGlobalErrorHandler();
+// Función para iniciar el temporizador de medicación
+const startMedicationTimer = () => {
+  // Limpiar timer existente si hay alguno
+  if (medicacionTimer) {
+    clearInterval(medicacionTimer);
+    medicacionTimer = null;
+  }
+  
+  console.log("Iniciando timer de medicación");
+  
+  // Crear nuevo timer
+  medicacionTimer = setInterval(() => {
+    // Solo ejecutar si el usuario está autenticado
+    if (store.getters.isAuthenticated) {
+      store.dispatch('actualizarTiempoMedicacion').catch(error => {
+        console.error("Error al actualizar tiempo de medicación:", error);
+      });
+    }
+  }, 60000); // 60000 ms = 1 minuto
+};
 
-// Exponer el store en window para depuración en desarrollo
-if (process.env.NODE_ENV !== 'production') {
-  window.store = store;
-}
-
-// Inicializa el estado de autenticación y después monta la app
-store.dispatch('initAuth')
-  .then(() => {
-    console.log("Autenticación inicializada, montando app Vue");
+// Función para configurar y montar la aplicación
+const setupAndMountApp = async () => {
+  try {
+    console.log("Iniciando aplicación...");
+    
+    // Configurar logging y error handling
+    setupDebugLogging();
+    setupGlobalErrorHandler();
+    
+    // Crear la aplicación Vue 
+    app = createApp(App);
+    
+    // Registrar plugins
+    app.use(router);
+    app.use(store);
+    // Proporcionar useVuelidate a la aplicación
+    app.provide('useVuelidate', useVuelidate);
+    
+    // Directivas personalizadas
+    app.directive('focus', {
+      mounted(el) {
+        el.focus();
+      }
+    });
+    
+    app.directive('click-outside', {
+      mounted(el, binding) {
+        el.clickOutsideEvent = function(event) {
+          if (!(el === event.target || el.contains(event.target))) {
+            binding.value(event);
+          }
+        };
+        document.body.addEventListener('click', el.clickOutsideEvent);
+      },
+      unmounted(el) {
+        document.body.removeEventListener('click', el.clickOutsideEvent);
+      }
+    });
+    
+    // Exponer el store en window para depuración en desarrollo
+    if (process.env.NODE_ENV !== 'production') {
+      window.store = store;
+    }
+    
+    // Inicializar autenticación antes de montar la app
+    console.log("Inicializando autenticación...");
+    await store.dispatch('initAuth');
+    console.log("Autenticación inicializada correctamente");
+    
+    // Marcar la autenticación como inicializada en el router
+    if (router.markAuthInitialized) {
+      router.markAuthInitialized();
+    }
     
     // Montar la aplicación
     app.mount('#app');
@@ -134,18 +177,13 @@ store.dispatch('initAuth')
     
     // Iniciar temporizador para medicación si el usuario está autenticado
     if (store.getters.isAuthenticated) {
-      console.log("Usuario autenticado, iniciando timer de medicación");
-      medicacionTimer = setInterval(() => {
-        if (store.getters.isAuthenticated) {
-          store.dispatch('actualizarTiempoMedicacion').catch(error => {
-            console.error("Error al actualizar tiempo de medicación:", error);
-          });
-        }
-      }, 60000); // 60000 ms = 1 minuto
+      // Retrasar ligeramente para asegurar que la app está montada
+      setTimeout(() => {
+        startMedicationTimer();
+      }, 500);
     }
-  })
-  .catch(error => {
-    console.error("Error al inicializar autenticación:", error);
+  } catch (error) {
+    console.error("Error crítico al configurar la aplicación:", error);
     
     // Mostrar error de inicialización
     const errorElement = document.createElement('div');
@@ -165,15 +203,22 @@ store.dispatch('initAuth')
     
     // Intentamos montar la app de todos modos para mostrar la pantalla de error
     try {
-      app.mount('#app');
+      if (app) {
+        app.mount('#app');
+      }
     } catch (mountError) {
       console.error("No se pudo montar la aplicación:", mountError);
     }
-  });
+  }
+};
+
+// Iniciar la aplicación
+setupAndMountApp();
 
 // Limpieza de timers cuando la app se cierra
 window.addEventListener('beforeunload', () => {
   if (medicacionTimer) {
     clearInterval(medicacionTimer);
+    medicacionTimer = null;
   }
 });

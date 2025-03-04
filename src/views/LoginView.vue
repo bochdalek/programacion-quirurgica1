@@ -83,7 +83,9 @@
           password: ''
         },
         isLoading: false,
-        error: null
+        error: null,
+        redirectAttempted: false, // Track if we've already tried to redirect
+        loginMonitor: null // Timer to monitor login status
       }
     },
     computed: {
@@ -101,11 +103,12 @@
         try {
           const result = await this.$store.dispatch('login', this.form);
           console.log("Login exitoso, resultado:", result);
-          // No necesitamos redirección aquí ya que se hace en la acción login
+          
+          // Start monitoring authentication state after successful login
+          this.startLoginMonitor();
         } catch (err) {
           console.error("Error durante login:", err);
           this.error = err.message || 'Error al iniciar sesión';
-        } finally {
           this.isLoading = false;
         }
       },
@@ -115,36 +118,88 @@
         const role = this.$store.getters.currentUser?.role;
         if (role) {
           console.log("Redirección manual iniciada para rol:", role);
-          switch(role) {
-            case 'admin':
-              this.$router.push('/configuracion');
-              break;
-            case 'programador':
-              this.$router.push('/calendario');
-              break;
-            case 'traumatologo':
-              this.$router.push('/guardia');
-              break;
-            case 'enfermeria':
-              this.$router.push('/calendario');
-              break;
-            default:
-              this.$router.push('/');
-          }
+          this.redirectBasedOnRole(role);
         }
+      },
+      
+      // Helper method to redirect based on role
+      redirectBasedOnRole(role) {
+        switch(role) {
+          case 'admin':
+            this.$router.push('/configuracion');
+            break;
+          case 'programador':
+            this.$router.push('/calendario');
+            break;
+          case 'traumatologo':
+            this.$router.push('/guardia');
+            break;
+          case 'enfermeria':
+            this.$router.push('/calendario');
+            break;
+          default:
+            console.warn(`Rol desconocido: ${role}, redirigiendo a home`);
+            this.$router.push('/');
+            break;
+        }
+      },
+      
+      // Start monitoring authentication state
+      startLoginMonitor() {
+        // Clear any existing timer
+        if (this.loginMonitor) {
+          clearInterval(this.loginMonitor);
+        }
+        
+        // Create a new timer that checks auth status every 100ms
+        this.loginMonitor = setInterval(() => {
+          // Check if user is authenticated and redirection hasn't happened yet
+          if (this.isAuthenticated && !this.redirectAttempted) {
+            this.redirectAttempted = true;
+            
+            const role = this.$store.getters.currentUser?.role;
+            if (role) {
+              console.log("Monitor detectó autenticación, redirigiendo para rol:", role);
+              this.redirectBasedOnRole(role);
+              
+              // Stop the monitor after successful redirection
+              clearInterval(this.loginMonitor);
+              this.loginMonitor = null;
+              this.isLoading = false;
+            }
+          }
+        }, 100);
+        
+        // Safety timeout after 5 seconds
+        setTimeout(() => {
+          if (this.loginMonitor) {
+            clearInterval(this.loginMonitor);
+            this.loginMonitor = null;
+            this.isLoading = false;
+            console.log("Monitor de login detenido por timeout de seguridad");
+          }
+        }, 5000);
       }
     },
-    // Redireccionar si ya está autenticado
-    created() {
-      console.log("LoginView creado, verificando autenticación");
+    // Redireccionar si ya está autenticado al montar el componente
+    mounted() {
+      console.log("LoginView montado, verificando autenticación");
       
       // Verificar después de un pequeño retraso para asegurar que el store esté listo
       setTimeout(() => {
-        if (this.isAuthenticated) {
-          console.log("Usuario ya autenticado, redirigiendo");
+        if (this.isAuthenticated && !this.redirectAttempted) {
+          console.log("Usuario ya autenticado, redirigiendo desde montado");
+          this.redirectAttempted = true;
           this.forceRedirect();
         }
-      }, 100);
+      }, 200);
+    },
+    // Cleanup on component unmount
+    beforeUnmount() {
+      if (this.loginMonitor) {
+        clearInterval(this.loginMonitor);
+        this.loginMonitor = null;
+      }
     }
   }
   </script>

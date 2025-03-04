@@ -3,7 +3,7 @@
       <transition-group name="notification">
         <div 
           v-for="notification in safeNotifications" 
-          :key="notification.id"
+          :key="notification.id || index"
           :class="[
             'p-4 rounded shadow-lg border flex items-start',
             notificationClass(notification.type)
@@ -25,7 +25,7 @@
             </svg>
           </div>
           <div class="flex-1">
-            <p>{{ notification.message }}</p>
+            <p>{{ notification.message || 'Notificación del sistema' }}</p>
           </div>
           <button 
             @click="closeNotification(notification.id)" 
@@ -41,15 +41,35 @@
   </template>
   
   <script>
-  /* eslint-disable no-unused-vars */
   export default {
     name: 'NotificationsManager',
     computed: {
-      // Uso una computada intermedia para asegurar que siempre tenemos un array
+      // Enhanced safe notification access with better error handling
       safeNotifications() {
-        // Accedemos de forma segura a las notificaciones
-        const notifications = this.$store?.state?.app?.notifications;
-        return Array.isArray(notifications) ? notifications : [];
+        try {
+          const storeState = this.$store?.state;
+          const appState = storeState?.app;
+          const notifications = appState?.notifications;
+          
+          // Ensure we always return an array
+          if (!Array.isArray(notifications)) {
+            return [];
+          }
+          
+          // Ensure each notification has a valid ID
+          return notifications.map((notification, index) => {
+            if (!notification.id) {
+              return {
+                ...notification,
+                id: `notification-${index}-${Date.now()}`
+              };
+            }
+            return notification;
+          });
+        } catch (error) {
+          console.error('Error accessing notifications:', error);
+          return [];
+        }
       }
     },
     methods: {
@@ -66,10 +86,22 @@
         }
       },
       closeNotification(id) {
-        if (this.$store && typeof this.$store.commit === 'function') {
-          this.$store.commit('removeNotification', id);
+        // Defensive programming to avoid errors
+        if (this.$store && typeof this.$store.commit === 'function' && id) {
+          try {
+            this.$store.commit('removeNotification', id);
+          } catch (error) {
+            console.error('Error removing notification:', error);
+          }
         }
       }
+    },
+    // Make sure component is handled properly when mounted/unmounted
+    mounted() {
+      console.log('NotificationsManager mounted');
+    },
+    unmounted() {
+      console.log('NotificationsManager unmounted');
     }
   }
   </script>
