@@ -1,4 +1,4 @@
-// src/store/index.js (actualizado)
+// src/store/index.js (improved and ESLint fixed)
 import { createStore } from 'vuex'
 import authModule from './auth'
 import patientsModule from './patients'
@@ -30,29 +30,91 @@ const store = createStore({
   actions: {
     // Cargar datos iniciales
     async fetchInitialData({ dispatch }) {
+      console.log("Iniciando carga de datos iniciales...");
+      
       try {
-        await Promise.all([
-          dispatch('fetchConfiguracion'),
-          dispatch('fetchPacientesUrgentes'),
-          dispatch('fetchPacientesPresentar'),
-          dispatch('fetchPacientesNoProgMedicacion'),
-          dispatch('fetchPacientesNoProgPartesBlandas'),
-          dispatch('fetchPacientesPendientes'),
-          dispatch('fetchCalendarioSemanal')
-        ]);
-        // Notificar éxito
-        dispatch('notify', {
-          message: 'Datos cargados correctamente',
-          type: 'success'
-        });
+        // Track load status
+        let loadSuccess = true;
+        
+        // Load configuration first - most important
+        try {
+          await dispatch('fetchConfiguracion');
+          console.log("Configuración cargada correctamente");
+        } catch (configError) {
+          console.error('Error cargando configuración:', configError);
+          loadSuccess = false;
+        }
+        
+        // Load patient data - wrapped in try/catch blocks to continue even if some fail
+        try {
+          await dispatch('fetchPacientesUrgentes');
+        } catch (error) {
+          console.error('Error cargando pacientes urgentes:', error);
+          loadSuccess = false;
+        }
+        
+        try {
+          await dispatch('fetchPacientesPresentar');
+        } catch (error) {
+          console.error('Error cargando pacientes para presentar:', error);
+          loadSuccess = false;
+        }
+        
+        try {
+          await dispatch('fetchPacientesNoProgMedicacion');
+        } catch (error) {
+          console.error('Error cargando pacientes no programables por medicación:', error);
+          loadSuccess = false;
+        }
+        
+        try {
+          await dispatch('fetchPacientesNoProgPartesBlandas');
+        } catch (error) {
+          console.error('Error cargando pacientes no programables por partes blandas:', error);
+          loadSuccess = false;
+        }
+        
+        try {
+          await dispatch('fetchPacientesPendientes');
+        } catch (error) {
+          console.error('Error cargando pacientes pendientes:', error);
+          loadSuccess = false;
+        }
+        
+        try {
+          await dispatch('fetchCalendarioSemanal');
+        } catch (error) {
+          console.error('Error cargando calendario semanal:', error);
+          loadSuccess = false;
+        }
+        
+        // Notificar éxito o error parcial
+        if (loadSuccess) {
+          dispatch('notify', {
+            message: 'Datos cargados correctamente',
+            type: 'success'
+          });
+        } else {
+          dispatch('notify', {
+            message: 'Algunos datos no pudieron cargarse completamente. La aplicación puede funcionar con limitaciones.',
+            type: 'warning'
+          });
+        }
+        
+        console.log("Carga de datos iniciales completada", loadSuccess ? "con éxito" : "con algunos errores");
       } catch (error) {
-        console.error('Error cargando datos iniciales:', error);
+        console.error('Error general cargando datos iniciales:', error);
         // Notificar error
         dispatch('notify', {
-          message: 'Error al cargar datos: ' + error.message,
+          message: 'Error al cargar datos: ' + (error.message || 'Error desconocido'),
           type: 'error'
         });
+        
+        // Even in case of error, return success to allow the app to continue
+        return true;
       }
+      
+      return true;
     },
     
     // Cargar estado desde localStorage (opcional para uso futuro)

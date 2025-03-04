@@ -22,23 +22,25 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(paciente, index) in pacientesPendientes" :key="index" class="border-b hover:bg-gray-50">
-            <td class="py-2 px-3">{{ paciente.nombre }}</td>
-            <td class="py-2 px-3">{{ paciente.edad }}</td>
-            <td class="py-2 px-3">{{ paciente.tipoFractura }}</td>
-            <td class="py-2 px-3">{{ paciente.fechaIngreso }}</td>
-            <td class="py-2 px-3">{{ index + 1 }}</td>
-            <td class="py-2 px-3">{{ paciente.estado }}</td>
-            <td class="py-2 px-3 space-x-1">
-              <button @click="editarPaciente(paciente, index)" class="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600">
-                Editar
-              </button>
-              <button @click="quitarPaciente(paciente, index)" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600">
-                Quitar
-              </button>
-            </td>
-          </tr>
-          <tr v-if="pacientesPendientes.length === 0">
+          <template v-if="safePacientesPendientes.length > 0">
+            <tr v-for="(paciente, index) in safePacientesPendientes" :key="index" class="border-b hover:bg-gray-50">
+              <td class="py-2 px-3">{{ paciente.nombre }}</td>
+              <td class="py-2 px-3">{{ paciente.edad }}</td>
+              <td class="py-2 px-3">{{ paciente.tipoFractura }}</td>
+              <td class="py-2 px-3">{{ paciente.fechaIngreso }}</td>
+              <td class="py-2 px-3">{{ index + 1 }}</td>
+              <td class="py-2 px-3">{{ paciente.estado }}</td>
+              <td class="py-2 px-3 space-x-1">
+                <button @click="editarPaciente(paciente, index)" class="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600">
+                  Editar
+                </button>
+                <button @click="quitarPaciente(paciente, index)" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600">
+                  Quitar
+                </button>
+              </td>
+            </tr>
+          </template>
+          <tr v-if="!safePacientesPendientes || safePacientesPendientes.length === 0">
             <td colspan="7" class="py-4 text-center text-gray-500">No hay pacientes pendientes de programación</td>
           </tr>
         </tbody>
@@ -53,11 +55,15 @@ import { mapState } from 'vuex'
 export default {
   name: 'PacientesPendientes',
   computed: {
-    ...mapState(['pacientesPendientes'])
+    ...mapState(['pacientesPendientes']),
+    // Computed property para manejar de forma segura la posibilidad de que pacientesPendientes sea undefined
+    safePacientesPendientes() {
+      return this.pacientesPendientes || [];
+    }
   },
   methods: {
     ejecutarAlgoritmo() {
-      if (this.pacientesPendientes.length === 0) {
+      if (this.safePacientesPendientes.length === 0) {
         alert('No hay pacientes pendientes para programar.');
         return;
       }
@@ -76,7 +82,7 @@ export default {
       const nuevoEstado = prompt('Ingrese el nuevo estado del paciente:', paciente.estado);
       
       if (nuevoEstado) {
-        const pacientesActualizados = [...this.pacientesPendientes];
+        const pacientesActualizados = [...this.safePacientesPendientes];
         pacientesActualizados[index] = {
           ...paciente,
           estado: nuevoEstado
@@ -88,7 +94,7 @@ export default {
     },
     quitarPaciente(paciente, index) {
       if (confirm(`¿Está seguro de quitar a ${paciente.nombre} de la lista de pendientes?`)) {
-        const pacientesActualizados = [...this.pacientesPendientes];
+        const pacientesActualizados = [...this.safePacientesPendientes];
         pacientesActualizados.splice(index, 1);
         
         this.$store.commit('actualizarPacientesPendientes', pacientesActualizados);

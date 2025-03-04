@@ -6,31 +6,33 @@
       <h3 class="text-lg font-semibold mb-4">Pacientes Pendientes de Programación</h3>
       <div class="overflow-auto max-h-64 mb-4 bg-gray-50 p-2 rounded">
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          <div v-for="(paciente, index) in pacientesPendientes"
-               :key="index"
-               class="bg-white p-2 rounded shadow border border-gray-200 cursor-move"
-               draggable="true"
-               @dragstart="onDragStart($event, paciente, index)">
-            <p class="font-medium">{{ paciente.nombre }}</p>
-            <p class="text-sm">
-              {{ paciente.tipoFractura }}
-              <span v-if="paciente.detallesFractura" class="text-gray-500">
-                ({{ paciente.detallesFractura }})
-              </span>
-            </p>
-            <p class="text-xs text-gray-500">Ingreso: {{ paciente.fechaIngreso }}</p>
-            <div class="flex justify-end mt-1">
-              <button @click="editarPaciente(paciente, index)"
-                      class="text-blue-500 hover:text-blue-700 text-xs mx-1" title="Editar prioridad, datos o estado del paciente">
-                Editar
-              </button>
-              <button @click="quitarPaciente(paciente, index)"
-                      class="text-red-500 hover:text-red-700 text-xs mx-1">
-                Quitar
-              </button>
+          <template v-if="safePacientesPendientes.length > 0">
+            <div v-for="(paciente, index) in safePacientesPendientes"
+                :key="index"
+                class="bg-white p-2 rounded shadow border border-gray-200 cursor-move"
+                draggable="true"
+                @dragstart="onDragStart($event, paciente, index)">
+              <p class="font-medium">{{ paciente.nombre }}</p>
+              <p class="text-sm">
+                {{ paciente.tipoFractura }}
+                <span v-if="paciente.detallesFractura" class="text-gray-500">
+                  ({{ paciente.detallesFractura }})
+                </span>
+              </p>
+              <p class="text-xs text-gray-500">Ingreso: {{ paciente.fechaIngreso }}</p>
+              <div class="flex justify-end mt-1">
+                <button @click="editarPaciente(paciente, index)"
+                        class="text-blue-500 hover:text-blue-700 text-xs mx-1" title="Editar prioridad, datos o estado del paciente">
+                  Editar
+                </button>
+                <button @click="quitarPaciente(paciente, index)"
+                        class="text-red-500 hover:text-red-700 text-xs mx-1">
+                  Quitar
+                </button>
+              </div>
             </div>
-          </div>
-          <div v-if="pacientesPendientes.length === 0" class="col-span-full py-4 text-center text-gray-500">
+          </template>
+          <div v-if="!safePacientesPendientes || safePacientesPendientes.length === 0" class="col-span-full py-4 text-center text-gray-500">
             No hay pacientes pendientes de programación
           </div>
         </div>
@@ -136,12 +138,25 @@ export default {
     }
   },
   computed: {
-    ...mapState(['diasSemana', 'configuracion', 'pacientesPendientes', 'calendarioSemanal'])
+    ...mapState(['diasSemana', 'configuracion', 'pacientesPendientes', 'calendarioSemanal']),
+    // Computed property para manejar de forma segura cuando pacientesPendientes o calendarioSemanal sea undefined
+    safePacientesPendientes() {
+      return this.pacientesPendientes || [];
+    },
+    safeCalendarioSemanal() {
+      return this.calendarioSemanal || [];
+    },
+    safeDiasSemana() {
+      return this.diasSemana || [];
+    },
+    safeConfiguracion() {
+      return this.configuracion || [];
+    }
   },
   methods: {
     getNumQuirofanos(dia, turno) {
-      if (!this.configuracion[dia]) return 0;
-      return this.configuracion[dia][turno] || 0;
+      if (!this.safeConfiguracion[dia]) return 0;
+      return this.safeConfiguracion[dia][turno] || 0;
     },
     onDragStart(event, paciente, index) {
       this.draggedPaciente = paciente;
@@ -165,21 +180,21 @@ export default {
     },
     asignarPacienteASlot(paciente, dia, turno, quirofano, slot) {
       // Verificar si ya existe el calendario para este día
-      if (!this.calendarioSemanal[dia]) {
+      if (!this.safeCalendarioSemanal[dia]) {
         this.$store.commit('inicializarDiaCalendario', dia);
       }
 
       this.$store.commit('asignarPacienteASlot', { dia, turno, quirofano, slot, paciente });
     },
     getPacienteEnSlot(dia, turno, quirofano, slot) {
-      if (!this.calendarioSemanal[dia] ||
-          !this.calendarioSemanal[dia][turno] ||
-          !this.calendarioSemanal[dia][turno][quirofano] ||
-          !this.calendarioSemanal[dia][turno][quirofano].slots) {
+      if (!this.safeCalendarioSemanal[dia] ||
+          !this.safeCalendarioSemanal[dia][turno] ||
+          !this.safeCalendarioSemanal[dia][turno][quirofano] ||
+          !this.safeCalendarioSemanal[dia][turno][quirofano].slots) {
         return null;
       }
 
-      return this.calendarioSemanal[dia][turno][quirofano].slots[slot];
+      return this.safeCalendarioSemanal[dia][turno][quirofano].slots[slot];
     },
     quitarPacienteDeSlot(dia, turno, quirofano, slot) {
       if (confirm('¿Está seguro de quitar este paciente del quirófano?')) {
@@ -222,7 +237,7 @@ export default {
         case 1: {
           const nuevaPrioridad = prompt('Ingrese la nueva prioridad (1-10, donde 1 es más urgente):', '5');
           if (nuevaPrioridad && !isNaN(parseInt(nuevaPrioridad))) {
-            const pacientesActualizados = [...this.pacientesPendientes];
+            const pacientesActualizados = [...this.safePacientesPendientes];
             pacientesActualizados[index] = {
               ...paciente,
               prioridad: parseInt(nuevaPrioridad)
@@ -235,7 +250,7 @@ export default {
         case 2: {
           const nuevosDatos = prompt('Editar datos clínicos:', paciente.estadoClinico || '');
           if (nuevosDatos) {
-            const pacientesActualizados = [...this.pacientesPendientes];
+            const pacientesActualizados = [...this.safePacientesPendientes];
             pacientesActualizados[index] = {
               ...paciente,
               estadoClinico: nuevosDatos
@@ -248,7 +263,7 @@ export default {
         case 3: {
           const nuevoEstado = prompt('Ingrese el nuevo estado del paciente:', paciente.estado || 'Listo');
           if (nuevoEstado) {
-            const pacientesActualizados = [...this.pacientesPendientes];
+            const pacientesActualizados = [...this.safePacientesPendientes];
             pacientesActualizados[index] = {
               ...paciente,
               estado: nuevoEstado
@@ -261,7 +276,7 @@ export default {
         case 4: {
           const nuevasNotas = prompt('Añadir notas adicionales:', paciente.notas || '');
           if (nuevasNotas) {
-            const pacientesActualizados = [...this.pacientesPendientes];
+            const pacientesActualizados = [...this.safePacientesPendientes];
             pacientesActualizados[index] = {
               ...paciente,
               notas: nuevasNotas
@@ -282,7 +297,7 @@ export default {
       }
     },
     ejecutarAlgoritmo() {
-      if (this.pacientesPendientes.length === 0) {
+      if (this.safePacientesPendientes.length === 0) {
         alert('No hay pacientes pendientes para programar.');
         return;
       }

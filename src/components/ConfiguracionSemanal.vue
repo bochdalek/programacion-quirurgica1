@@ -14,8 +14,8 @@
       </ul>
     </div>
     
-    <div v-if="diasSemana && diasSemana.length" class="grid grid-cols-1 md:grid-cols-7 gap-4">
-      <div v-for="(dia, index) in diasSemana" :key="index" class="bg-gray-50 p-4 rounded-lg border">
+    <div v-if="configuracionInicializada" class="grid grid-cols-1 md:grid-cols-7 gap-4">
+      <div v-for="(dia, index) in diasSemanaLocal" :key="index" class="bg-gray-50 p-4 rounded-lg border">
         <h3 class="text-lg font-bold mb-3">{{ dia }}</h3>
         
         <div class="mb-4">
@@ -37,11 +37,14 @@
     </div>
     
     <div v-else class="bg-gray-100 p-4 rounded text-center">
-      Cargando configuración...
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+      <p>Cargando configuración...</p>
     </div>
     
     <div class="flex justify-end mt-4">
-      <button @click="guardarConfiguracion" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+      <button @click="guardarConfiguracion" :disabled="!configuracionInicializada" 
+              :class="configuracionInicializada ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'"
+              class="text-white px-4 py-2 rounded">
         Guardar Configuración
       </button>
     </div>
@@ -55,7 +58,11 @@ export default {
   name: 'ConfiguracionSemanal',
   data() {
     return {
-      configuracionLocal: []
+      configuracionLocal: [],
+      diasSemanaLocal: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+      configuracionInicializada: false,
+      initializationAttempts: 0,
+      maxAttempts: 5
     }
   },
   computed: {
@@ -63,60 +70,77 @@ export default {
   },
   methods: {
     guardarConfiguracion() {
-      if (!this.configuracionLocal || !this.diasSemana || this.configuracionLocal.length === 0) {
+      if (!this.configuracionInicializada) {
         alert('Error: No hay configuración para guardar');
         return;
       }
       
-      this.$store.commit('actualizarConfiguracion', JSON.parse(JSON.stringify(this.configuracionLocal)));
-      alert('Configuración guardada correctamente');
+      try {
+        this.$store.commit('actualizarConfiguracion', JSON.parse(JSON.stringify(this.configuracionLocal)));
+        alert('Configuración guardada correctamente');
+      } catch (error) {
+        console.error("Error al guardar configuración:", error);
+        alert(`Error al guardar configuración: ${error.message || 'Error desconocido'}`);
+      }
     },
     
+    // Método para inicializar la configuración
     initializeConfiguration() {
-      // Solo inicializar si tenemos los datos necesarios
-      if (!this.diasSemana || !this.diasSemana.length) {
-        console.log('Esperando datos de diasSemana para inicializar configuración');
-        return;
+      console.log("Intentando inicializar configuración. Intento:", this.initializationAttempts + 1);
+      
+      // Verificar si tenemos acceso a los datos de configuración
+      if (this.configuracion && Array.isArray(this.configuracion) && this.configuracion.length > 0) {
+        // Inicializar la configuración con los valores existentes
+        this.configuracionLocal = this.configuracion.map(config => ({
+          manana: config.manana || 0,
+          tarde: config.tarde || 0
+        }));
+        
+        this.configuracionInicializada = true;
+        console.log("Configuración inicializada correctamente a partir de datos existentes");
+        return true;
       }
       
-      // Inicializar la configuración con valores por defecto o existentes
-      this.configuracionLocal = this.diasSemana.map((_, index) => {
-        // Si hay configuración existente, usarla
-        if (this.configuracion && this.configuracion[index]) {
-          return {
-            manana: this.configuracion[index].manana || 0,
-            tarde: this.configuracion[index].tarde || 0
-          };
-        }
-        // Valores por defecto
-        return {
+      // Si no hay datos de configuración, usar valores por defecto
+      if (this.initializationAttempts >= this.maxAttempts) {
+        console.log("Se alcanzó el máximo de intentos, inicializando con valores por defecto");
+        
+        // Inicializar con valores por defecto
+        this.configuracionLocal = this.diasSemanaLocal.map((_, index) => ({
           manana: index < 5 ? 2 : 1, // Lunes a Viernes: 2, Sábado y Domingo: 1
           tarde: index < 5 ? 2 : 1
-        };
-      });
+        }));
+        
+        this.configuracionInicializada = true;
+        console.log("Configuración inicializada con valores por defecto");
+        return true;
+      }
+      
+      this.initializationAttempts++;
+      return false;
+    },
+    
+    // Método de inicialización con reintento
+    attemptInitialization() {
+      if (!this.initializeConfiguration()) {
+        // Si no se pudo inicializar, intentar de nuevo después de un retraso
+        setTimeout(() => {
+          this.attemptInitialization();
+        }, 500 * Math.pow(2, this.initializationAttempts)); // Retraso exponencial
+      }
     }
   },
   created() {
-    // No inicializar aquí, esperar a que los datos estén disponibles
-  },
-  mounted() {
-    // Intentar inicializar cuando el componente esté montado
-    this.initializeConfiguration();
+    // Al crear el componente, intentar inicializar la configuración
+    this.attemptInitialization();
   },
   watch: {
-    // Observar cambios en diasSemana y configuracion para inicializar cuando estén disponibles
-    diasSemana: {
-      handler(newVal) {
-        if (newVal && newVal.length) {
+    // Observar cambios en la configuración del store
+    configuracion: {
+      handler(newConfig) {
+        if (newConfig && Array.isArray(newConfig) && newConfig.length > 0 && !this.configuracionInicializada) {
           this.initializeConfiguration();
         }
-      },
-      immediate: true
-    },
-    configuracion: {
-      handler() {
-        // Re-inicializar si cambia la configuración
-        this.initializeConfiguration();
       },
       immediate: true
     }

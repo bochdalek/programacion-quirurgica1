@@ -41,26 +41,28 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(paciente, index) in safePacientesMedicacion" :key="index" class="border-b hover:bg-gray-50"
-                  :class="{'bg-green-100': paciente.tiempoRestante <= 0}">
-                <td class="py-2 px-3">{{ paciente.nombre }}</td>
-                <td class="py-2 px-3">{{ paciente.medicacion }}</td>
-                <td class="py-2 px-3">
-                  {{ formatTiempoRestante(paciente.tiempoRestante) }}
-                  <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
-                    <div class="bg-blue-600 h-2 rounded-full" 
-                         :style="`width: ${getTiempoRestanteProgress(paciente)}%`"></div>
-                  </div>
-                </td>
-                <td class="py-2 px-3">
-                  <button @click="moverAPendientes(paciente, 'medicacion')" 
-                          :class="paciente.tiempoRestante <= 0 ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600'" 
-                          class="text-white px-2 py-1 rounded text-sm">
-                    Mover a Pendientes
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="safePacientesMedicacion.length === 0">
+              <template v-if="safePacientesMedicacion.length > 0">
+                <tr v-for="(paciente, index) in safePacientesMedicacion" :key="index" class="border-b hover:bg-gray-50"
+                    :class="{'bg-green-100': paciente.tiempoRestante <= 0}">
+                  <td class="py-2 px-3">{{ paciente.nombre }}</td>
+                  <td class="py-2 px-3">{{ paciente.medicacion }}</td>
+                  <td class="py-2 px-3">
+                    {{ formatTiempoRestante(paciente.tiempoRestante) }}
+                    <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                      <div class="bg-blue-600 h-2 rounded-full" 
+                           :style="`width: ${getTiempoRestanteProgress(paciente)}%`"></div>
+                    </div>
+                  </td>
+                  <td class="py-2 px-3">
+                    <button @click="moverAPendientes(paciente, 'medicacion')" 
+                            :class="paciente.tiempoRestante <= 0 ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600'" 
+                            class="text-white px-2 py-1 rounded text-sm">
+                      Mover a Pendientes
+                    </button>
+                  </td>
+                </tr>
+              </template>
+              <tr v-if="!safePacientesMedicacion || safePacientesMedicacion.length === 0">
                 <td colspan="4" class="py-4 text-center text-gray-500">No hay pacientes con restricciones por medicación</td>
               </tr>
             </tbody>
@@ -82,17 +84,19 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(paciente, index) in safePacientesPartesBlandas" :key="index" class="border-b hover:bg-gray-50">
-                <td class="py-2 px-3">{{ paciente.nombre }}</td>
-                <td class="py-2 px-3">{{ paciente.fechaPrimeraCirugia }}</td>
-                <td class="py-2 px-3">{{ paciente.motivo }}</td>
-                <td class="py-2 px-3">
-                  <button @click="moverAPendientes(paciente, 'partesBlandas')" class="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600">
-                    Mover a Pendientes
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="safePacientesPartesBlandas.length === 0">
+              <template v-if="safePacientesPartesBlandas.length > 0">
+                <tr v-for="(paciente, index) in safePacientesPartesBlandas" :key="index" class="border-b hover:bg-gray-50">
+                  <td class="py-2 px-3">{{ paciente.nombre }}</td>
+                  <td class="py-2 px-3">{{ paciente.fechaPrimeraCirugia }}</td>
+                  <td class="py-2 px-3">{{ paciente.motivo }}</td>
+                  <td class="py-2 px-3">
+                    <button @click="moverAPendientes(paciente, 'partesBlandas')" class="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600">
+                      Mover a Pendientes
+                    </button>
+                  </td>
+                </tr>
+              </template>
+              <tr v-if="!safePacientesPartesBlandas || safePacientesPartesBlandas.length === 0">
                 <td colspan="4" class="py-4 text-center text-gray-500">No hay pacientes pendientes de segunda cirugía</td>
               </tr>
             </tbody>

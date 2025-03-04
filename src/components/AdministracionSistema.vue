@@ -141,38 +141,58 @@
     computed: {
       ...mapState(['calendarioSemanal']),
       ...mapGetters(['totalPacientesRegistrados']),
+      // Computed property con safe-check para evitar error de "Cannot read properties of undefined (reading 'forEach')"
       totalProgramados() {
+        // Verificar que calendarioSemanal existe y es un array
+        const calendario = this.calendarioSemanal;
+        if (!calendario || !Array.isArray(calendario)) {
+          return 0;
+        }
+        
         // Calcular pacientes programados recorriendo el calendario
         let total = 0;
-        this.calendarioSemanal.forEach(dia => {
+        
+        calendario.forEach(dia => {
           if (!dia) return;
           
           // Contar en turno de mañana
           if (dia.manana) {
-            dia.manana.forEach(quirofano => {
-              if (quirofano && quirofano.slots) {
-                quirofano.slots.forEach(slot => {
-                  if (slot) total++;
-                });
-              } else if (quirofano) {
-                // Formato anterior sin slots
-                total++;
-              }
-            });
+            // Verificar que manana es un array
+            if (Array.isArray(dia.manana)) {
+              dia.manana.forEach(quirofano => {
+                if (quirofano && quirofano.slots) {
+                  // Verificar que slots es un array
+                  if (Array.isArray(quirofano.slots)) {
+                    quirofano.slots.forEach(slot => {
+                      if (slot) total++;
+                    });
+                  }
+                } else if (quirofano) {
+                  // Formato anterior sin slots
+                  total++;
+                }
+              });
+            }
           }
           
           // Contar en turno de tarde
           if (dia.tarde) {
-            dia.tarde.forEach(quirofano => {
-              if (quirofano && quirofano.slots) {
-                quirofano.slots.forEach(slot => {
-                  if (slot) total++;
-                });
-              } else if (quirofano) {
-                // Formato anterior sin slots
-                total++;
-              }
-            });
+            // Verificar que tarde es un array
+            if (Array.isArray(dia.tarde)) {
+              dia.tarde.forEach(quirofano => {
+                if (quirofano && quirofano.slots) {
+                  // Verificar que slots es un array
+                  if (Array.isArray(quirofano.slots)) {
+                    quirofano.slots.forEach(slot => {
+                      if (slot) total++;
+                    });
+                  }
+                } else if (quirofano) {
+                  // Formato anterior sin slots
+                  total++;
+                }
+              });
+            }
           }
         });
         

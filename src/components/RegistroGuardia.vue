@@ -142,27 +142,30 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(paciente, index) in pacientesUrgentes" :key="index" class="border-b hover:bg-gray-50">
-                <td class="py-2 px-3">{{ paciente.nombre }}</td>
-                <td class="py-2 px-3">
-                  {{ paciente.tipoFractura }}
-                  <span v-if="paciente.detallesFractura" class="text-sm text-gray-500 block">
-                    {{ paciente.detallesFractura }}
-                  </span>
-                </td>
-                <td class="py-2 px-3">
-                  <button @click="operarPaciente(paciente)" class="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600 mr-1">
-                    Operar
-                  </button>
-                  <button @click="marcarOrtopedicoUrgente(paciente, index)" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600 mr-1">
-                    Ortopédico
-                  </button>
-                  <button @click="verDetallesPaciente(paciente)" class="bg-yellow-500 text-white px-2 py-1 rounded text-sm hover:bg-yellow-600">
-                    Detalles
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="pacientesUrgentes.length === 0">
+              <!-- Agregando v-if para evitar error cuando pacientesUrgentesSeguro es undefined -->
+              <template v-if="pacientesUrgentesSeguro.length > 0">
+                <tr v-for="(paciente, index) in pacientesUrgentesSeguro" :key="index" class="border-b hover:bg-gray-50">
+                  <td class="py-2 px-3">{{ paciente.nombre }}</td>
+                  <td class="py-2 px-3">
+                    {{ paciente.tipoFractura }}
+                    <span v-if="paciente.detallesFractura" class="text-sm text-gray-500 block">
+                      {{ paciente.detallesFractura }}
+                    </span>
+                  </td>
+                  <td class="py-2 px-3">
+                    <button @click="operarPaciente(paciente)" class="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600 mr-1">
+                      Operar
+                    </button>
+                    <button @click="marcarOrtopedicoUrgente(paciente, index)" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600 mr-1">
+                      Ortopédico
+                    </button>
+                    <button @click="verDetallesPaciente(paciente)" class="bg-yellow-500 text-white px-2 py-1 rounded text-sm hover:bg-yellow-600">
+                      Detalles
+                    </button>
+                  </td>
+                </tr>
+              </template>
+              <tr v-if="!pacientesUrgentesSeguro || pacientesUrgentesSeguro.length === 0">
                 <td colspan="3" class="py-4 text-center text-gray-500">No hay pacientes urgentes registrados</td>
               </tr>
             </tbody>
@@ -206,6 +209,10 @@ export default {
   },
   computed: {
     ...mapState(['pacientesUrgentes']),
+    // Computed property con safe-check para evitar error de "Cannot read properties of undefined (reading 'length')"
+    pacientesUrgentesSeguro() {
+      return this.pacientesUrgentes || [];
+    },
     formularioValido() {
       return this.nuevoPaciente.nombre &&
              this.nuevoPaciente.edad &&

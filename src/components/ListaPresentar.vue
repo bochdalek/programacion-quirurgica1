@@ -40,33 +40,35 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(paciente, index) in safePacientesPresentar" :key="index" class="border-b hover:bg-gray-50">
-            <td class="py-2 px-3">{{ paciente.nombre }}</td>
-            <td class="py-2 px-3">{{ paciente.edad }}</td>
-            <td class="py-2 px-3">
-              {{ paciente.tipoFractura }}
-              <span v-if="paciente.detallesFractura" class="text-sm text-gray-500 block">
-                {{ paciente.detallesFractura }}
-              </span>
-            </td>
-            <td class="py-2 px-3">{{ paciente.fechaIngreso }}</td>
-            <td class="py-2 px-3">{{ paciente.estadoClinico }}</td>
-            <td class="py-2 px-3 space-x-1">
-              <button @click="moverAPendientes(paciente)" class="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600">
-                A Pendientes
-              </button>
-              <button @click="abrirModalMedicacion(paciente)" class="bg-yellow-500 text-white px-2 py-1 rounded text-sm hover:bg-yellow-600">
-                No Programable
-              </button>
-              <button @click="marcarOrtopedico(paciente, index)" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600">
-                Ortopédico
-              </button>
-              <button @click="verDetalles(paciente)" class="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600">
-                Detalles
-              </button>
-            </td>
-          </tr>
-          <tr v-if="safePacientesPresentar.length === 0">
+          <template v-if="safePacientesPresentar.length > 0">
+            <tr v-for="(paciente, index) in safePacientesPresentar" :key="index" class="border-b hover:bg-gray-50">
+              <td class="py-2 px-3">{{ paciente.nombre }}</td>
+              <td class="py-2 px-3">{{ paciente.edad }}</td>
+              <td class="py-2 px-3">
+                {{ paciente.tipoFractura }}
+                <span v-if="paciente.detallesFractura" class="text-sm text-gray-500 block">
+                  {{ paciente.detallesFractura }}
+                </span>
+              </td>
+              <td class="py-2 px-3">{{ paciente.fechaIngreso }}</td>
+              <td class="py-2 px-3">{{ paciente.estadoClinico }}</td>
+              <td class="py-2 px-3 space-x-1">
+                <button @click="moverAPendientes(paciente)" class="bg-green-500 text-white px-2 py-1 rounded text-sm hover:bg-green-600">
+                  A Pendientes
+                </button>
+                <button @click="abrirModalMedicacion(paciente)" class="bg-yellow-500 text-white px-2 py-1 rounded text-sm hover:bg-yellow-600">
+                  No Programable
+                </button>
+                <button @click="marcarOrtopedico(paciente, index)" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600">
+                  Ortopédico
+                </button>
+                <button @click="verDetalles(paciente)" class="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600">
+                  Detalles
+                </button>
+              </td>
+            </tr>
+          </template>
+          <tr v-if="!safePacientesPresentar || safePacientesPresentar.length === 0">
             <td colspan="6" class="py-4 text-center text-gray-500">No hay pacientes para presentar</td>
           </tr>
         </tbody>
@@ -172,6 +174,7 @@ export default {
   },
   computed: {
     ...mapState(['pacientesPresentar']),
+    // Computed property con safe-check para evitar error de "Cannot read properties of undefined (reading 'length')"
     safePacientesPresentar() {
       return this.pacientesPresentar || [];
     }
