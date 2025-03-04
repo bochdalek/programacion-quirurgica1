@@ -32,6 +32,10 @@ import {
       },
       
       agregarPacienteUrgente(state, paciente) {
+        // Asegurar que pacientesUrgentes sea un array
+        if (!Array.isArray(state.pacientesUrgentes)) {
+          state.pacientesUrgentes = [];
+        }
         state.pacientesUrgentes.push(paciente)
       },
       
@@ -45,6 +49,11 @@ import {
       },
       
       agregarPacientePresentar(state, paciente) {
+        // Asegurar que pacientesPresentar sea un array
+        if (!Array.isArray(state.pacientesPresentar)) {
+          state.pacientesPresentar = [];
+        }
+        console.log("Añadiendo paciente a la lista de presentar:", paciente);
         state.pacientesPresentar.push(paciente)
       },
       
@@ -58,6 +67,10 @@ import {
       },
       
       agregarPacienteNoProgMedicacion(state, paciente) {
+        // Asegurar que pacientesNoProgMedicacion sea un array
+        if (!Array.isArray(state.pacientesNoProgMedicacion)) {
+          state.pacientesNoProgMedicacion = [];
+        }
         state.pacientesNoProgMedicacion.push(paciente)
       },
       
@@ -78,6 +91,10 @@ import {
       },
       
       agregarPacienteNoProgPartesBlandas(state, paciente) {
+        // Asegurar que pacientesNoProgPartesBlandas sea un array
+        if (!Array.isArray(state.pacientesNoProgPartesBlandas)) {
+          state.pacientesNoProgPartesBlandas = [];
+        }
         state.pacientesNoProgPartesBlandas.push(paciente)
       },
       
@@ -91,6 +108,10 @@ import {
       },
       
       agregarPacientePendiente(state, paciente) {
+        // Asegurar que pacientesPendientes sea un array
+        if (!Array.isArray(state.pacientesPendientes)) {
+          state.pacientesPendientes = [];
+        }
         state.pacientesPendientes.push(paciente)
       },
       
@@ -130,9 +151,11 @@ import {
           
           const id = await addPaciente(pacienteToSave);
           commit('agregarPacienteUrgente', { id, ...pacienteToSave });
+          return { success: true };
         } catch (error) {
           commit('setError', error.message, { root: true });
           console.error("Error al añadir paciente urgente:", error);
+          throw error;
         } finally {
           commit('setLoading', false, { root: true });
         }
@@ -192,6 +215,7 @@ import {
         
         try {
           const pacientes = await getPacientesByEstado('presentar');
+          console.log("Pacientes para presentar recuperados:", pacientes);
           commit('setPacientesPresentar', pacientes);
         } catch (error) {
           commit('setError', error.message, { root: true });
@@ -205,17 +229,33 @@ import {
         commit('setLoading', true, { root: true });
         
         try {
+          console.log("addPacientePresentar - Datos recibidos:", paciente);
+          
+          // Verificar que el paciente tiene los campos necesarios
+          if (!paciente.nombre || !paciente.edad) {
+            throw new Error("Faltan datos del paciente");
+          }
+          
           const pacienteToSave = {
             ...paciente,
             estado: 'presentar',
-            fechaIngreso: new Date().toISOString()
+            fechaIngreso: paciente.fechaIngreso || new Date().toISOString()
           };
           
+          console.log("addPacientePresentar - Guardando paciente:", pacienteToSave);
           const id = await addPaciente(pacienteToSave);
-          commit('agregarPacientePresentar', { id, ...pacienteToSave });
+          
+          // Crear el objeto completo a guardar en el store
+          const pacienteCompleto = { id, ...pacienteToSave };
+          console.log("addPacientePresentar - Paciente guardado con ID:", id, pacienteCompleto);
+          
+          // Actualizar el store
+          commit('agregarPacientePresentar', pacienteCompleto);
+          return { success: true, id };
         } catch (error) {
           commit('setError', error.message, { root: true });
           console.error("Error al añadir paciente para presentar:", error);
+          throw error;
         } finally {
           commit('setLoading', false, { root: true });
         }

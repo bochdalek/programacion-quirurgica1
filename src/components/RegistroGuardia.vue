@@ -1,3 +1,4 @@
+<!-- src/components/RegistroGuardia.vue con correcciones -->
 <template>
   <div class="space-y-6">
     <h2 class="text-2xl font-bold text-gray-800 border-b pb-2">Registro de Guardia</h2>
@@ -233,7 +234,13 @@ export default {
       // Asignar un ID temporal para desarrollo local
       paciente.id = 'temp-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
       
+      console.log("Registrando paciente:", paciente);
+      
+      // Asegurar que el paciente tiene una fecha de ingreso
+      paciente.fechaIngreso = new Date().toISOString().slice(0, 10);
+      
       if (paciente.urgencia === 'urgente') {
+        console.log("Agregando paciente como urgente");
         this.$store.dispatch('addPacienteUrgente', paciente).then(() => {
           // Resetear el formulario
           this.resetearFormulario();
@@ -242,12 +249,19 @@ export default {
           alert(`Error al registrar paciente: ${error.message}`);
         });
       } else {
-        this.$store.dispatch('addPacientePresentar', paciente).then(() => {
+        console.log("Agregando paciente para presentar");
+        this.$store.dispatch('addPacientePresentar', paciente).then((result) => {
+          console.log("Resultado de addPacientePresentar:", result);
+          // Forzar actualización de la lista de pacientes para presentar
+          this.$store.dispatch('fetchPacientesPresentar').then(() => {
+            console.log("Lista de presentar actualizada");
+          });
           // Resetear el formulario
           this.resetearFormulario();
           alert('Paciente registrado correctamente para presentar');
         }).catch(error => {
-          alert(`Error al registrar paciente: ${error.message}`);
+          console.error("Error en registrarPaciente:", error);
+          alert(`Error al registrar paciente: ${error.message || 'Error desconocido'}`);
         });
       }
     },
@@ -341,6 +355,10 @@ export default {
       
       alert(detalles);
     }
+  },
+  // Cargar pacientes urgentes al montar el componente
+  mounted() {
+    this.$store.dispatch('fetchPacientesUrgentes');
   }
 }
 </script>

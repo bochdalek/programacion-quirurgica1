@@ -1,4 +1,4 @@
-// src/firebase/index.js - Fixed with ESLint errors resolved
+// src/firebase/index.js - Versión corregida
 import { initializeApp } from 'firebase/app'
 import { 
   getFirestore, collection, doc, getDoc, getDocs, 
@@ -20,6 +20,8 @@ const getLocalCollection = (collectionName) => {
     const data = localStorage.getItem(`dev_${collectionName}`);
     if (!data) {
       // If no data exists, initialize with empty array
+      console.log(`Inicializando colección vacía para ${collectionName}`);
+      localStorage.setItem(`dev_${collectionName}`, JSON.stringify([]));
       return [];
     }
     return JSON.parse(data);
@@ -31,6 +33,7 @@ const getLocalCollection = (collectionName) => {
 
 const saveLocalCollection = (collectionName, data) => {
   try {
+    console.log(`Guardando colección ${collectionName} en localStorage:`, data);
     localStorage.setItem(`dev_${collectionName}`, JSON.stringify(data));
   } catch (error) {
     console.error(`Error al guardar colección ${collectionName} en localStorage:`, error);
@@ -226,7 +229,7 @@ const getConfiguracion = async () => {
     saveLocalCollection('configuracion', defaultConfig);
     return defaultConfig;
   }
-}
+};
 
 const updateConfiguracion = async (id, data) => {
   try {
@@ -253,16 +256,17 @@ const updateConfiguracion = async (id, data) => {
     console.error("Error general al actualizar configuración:", error);
     throw error;
   }
-}
+};
 
-// Add stub methods for the rest of the functions that were originally exported but not implemented in the code snippet
+// Implementación completa de las funciones de pacientes
 const getPacientesByEstado = async (estado) => {
-  // Implementation from original file would go here
   try {
     if (simulateLocalStorage) {
       console.log(`[DEV] Obteniendo pacientes con estado: ${estado} desde localStorage`);
       const pacientes = getLocalCollection('pacientes');
-      return pacientes.filter(p => p.estado === estado);
+      const pacientesFiltrados = pacientes.filter(p => p.estado === estado);
+      console.log(`[DEV] Encontrados ${pacientesFiltrados.length} pacientes con estado: ${estado}`);
+      return pacientesFiltrados;
     }
 
     // Código original para Firebase
@@ -284,10 +288,9 @@ const getPacientesByEstado = async (estado) => {
     console.error(`Error al obtener pacientes con estado ${estado}:`, error)
     throw error
   }
-}
+};
 
 const addPaciente = async (pacienteData) => {
-  // Implementation would go here
   try {
     // Verificar que el paciente tiene todos los datos necesarios
     if (!pacienteData.nombre || !pacienteData.tipoFractura) {
@@ -310,6 +313,7 @@ const addPaciente = async (pacienteData) => {
       
       pacientes.push(pacienteConId);
       saveLocalCollection('pacientes', pacientes);
+      console.log('[DEV] Paciente guardado con ID:', pacienteConId.id);
       return pacienteConId.id;
     }
 
@@ -328,10 +332,9 @@ const addPaciente = async (pacienteData) => {
     console.error("Error al añadir paciente:", error)
     throw error
   }
-}
+};
 
 const updatePaciente = async (id, data) => {
-  // Implementation would go here
   try {
     // Validar que el ID no esté vacío
     if (!id) {
@@ -368,10 +371,9 @@ const updatePaciente = async (id, data) => {
     console.error("Error al actualizar paciente:", error)
     throw error
   }
-}
+};
 
 const deletePaciente = async (id) => {
-  // Implementation would go here
   try {
     // Validar que el ID no esté vacío
     if (!id) {
@@ -401,10 +403,9 @@ const deletePaciente = async (id) => {
     console.error("Error al eliminar paciente:", error)
     throw error
   }
-}
+};
 
 const getCalendarioSemanal = async () => {
-  // Implementation would go here
   try {
     if (simulateLocalStorage) {
       console.log('[DEV] Obteniendo calendario desde localStorage');
@@ -427,10 +428,9 @@ const getCalendarioSemanal = async () => {
     console.error("Error al obtener calendario:", error)
     throw error
   }
-}
+};
 
 const updateCalendario = async (id, data) => {
-  // Implementation would go here
   try {
     // Validar que el ID no esté vacío
     if (!id) {
@@ -472,10 +472,9 @@ const updateCalendario = async (id, data) => {
     console.error("Error al actualizar calendario:", error)
     throw error
   }
-}
+};
 
 const resetSemana = async () => {
-  // Implementation would go here
   try {
     if (simulateLocalStorage) {
       console.log('[DEV] Reseteando semana en localStorage');
@@ -510,7 +509,7 @@ const resetSemana = async () => {
     console.error("Error al resetear semana:", error)
     throw error
   }
-}
+};
 
 // Añadir función para inicializar localStorage con datos de ejemplo (opcional)
 const initializeLocalStorage = () => {
