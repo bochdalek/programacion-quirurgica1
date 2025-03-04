@@ -1,5 +1,8 @@
 <template>
   <div class="min-h-screen bg-gray-100">
+    <!-- Sistema de notificaciones -->
+    <NotificationsManager />
+    
     <div v-if="isAuthenticated" class="container mx-auto px-4 py-8">
       <!-- Barra de navegación principal -->
       <nav class="bg-blue-600 text-white rounded-lg mb-6 shadow-lg">
@@ -56,6 +59,16 @@
         </div>
       </nav>
 
+      <!-- Mensajes de error globales -->
+      <div v-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <strong>Error:</strong> {{ error }}
+        <button @click="dismissError" class="float-right text-red-700 hover:text-red-900">
+          <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
       <!-- Contenido principal basado en la ruta -->
       <div class="bg-white rounded-lg shadow-lg p-4 md:p-6">
         <div v-if="isLoading" class="flex justify-center items-center py-8">
@@ -67,7 +80,7 @@
       
       <!-- Pie de página -->
       <footer class="mt-8 text-center text-gray-500 text-sm">
-        <p>Sistema de Programación Quirúrgica &copy; 2025</p>
+        <p>Sistema de Programación Quirúrgica &copy; {{ currentYear }}</p>
       </footer>
     </div>
     
@@ -85,23 +98,31 @@
 
 <script>
 import { mapState, mapGetters } from 'vuex'
+import NotificationsManager from './components/NotificationsManager.vue'
 
 export default {
   name: 'AppPrincipal',
+  components: {
+    NotificationsManager
+  },
   data() {
     return {
       menuAbierto: false,
-      dataLoaded: false
+      dataLoaded: false,
+      currentYear: new Date().getFullYear()
     }
   },
   computed: {
-    ...mapState(['isLoading', 'error']),
+    ...mapState({
+      isLoading: state => state.app.isLoading, 
+      error: state => state.app.error
+    }),
     ...mapGetters(['isAuthenticated', 'currentUser', 'hasPermission', 'userRole'])
   },
   methods: {
     logout() {
       if (confirm('¿Está seguro de que desea cerrar sesión?')) {
-        this.$store.dispatch('logout')
+        this.$store.dispatch('logout');
       }
     },
     loadInitialData() {
@@ -141,6 +162,11 @@ export default {
             this.$router.push('/');
         }
       }
+    },
+    
+    // Descartar mensaje de error
+    dismissError() {
+      this.$store.commit('setError', null);
     }
   },
   watch: {
@@ -168,3 +194,24 @@ export default {
   }
 }
 </script>
+
+<style>
+/* Estilos globales */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+/* Animaciones para las páginas */
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.2s;
+}
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+</style>

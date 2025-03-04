@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Función para verificar autenticación
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Función para verificar roles
+    function hasRole(role) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    
+    // Función para verificar si el usuario es admin
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    // Función para verificar si el usuario es programador
+    function isProgramador() {
+      return hasRole('programador');
+    }
+    
+    // Función para verificar si el usuario es traumatólogo
+    function isTraumatologo() {
+      return hasRole('traumatologo');
+    }
+    
+    // Función para verificar si el usuario es enfermería
+    function isEnfermeria() {
+      return hasRole('enfermeria');
+    }
+    
+    // Reglas para la colección de usuarios
+    match /users/{userId} {
+      // Solo el propio usuario y los administradores pueden leer el perfil
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Solo los administradores pueden crear o actualizar usuarios
+      allow write: if isAdmin();
+    }
+    
+    // Reglas para la configuración
+    match /configuracion/{docId} {
+      // Todos los usuarios autenticados pueden leer la configuración
+      allow read: if isAuthenticated();
+      // Solo administradores y programadores pueden modificar la configuración
+      allow write: if isAdmin() || isProgramador();
+    }
+    
+    // Reglas para los pacientes
+    match /pacientes/{pacienteId} {
+      // Todos los usuarios autenticados pueden leer los pacientes
+      allow read: if isAuthenticated();
+      // Traumatólogos pueden crear pacientes
+      allow create: if isTraumatologo();
+      // Administradores, programadores y traumatólogos pueden actualizar pacientes
+      allow update: if isAdmin() || isProgramador() || isTraumatologo();
+      // Solo administradores pueden eliminar pacientes
+      allow delete: if isAdmin();
+    }
+    
+    // Reglas para el calendario
+    match /calendario/{docId} {
+      // Todos los usuarios autenticados pueden leer el calendario
+      allow read: if isAuthenticated();
+      // Solo administradores y programadores pueden modificar el calendario
+      allow write: if isAdmin() || isProgramador();
+    }
+    
+    // Reglas para el histórico
+    match /historico/{docId} {
+      // Todos los usuarios autenticados pueden leer el histórico
+      allow read: if isAuthenticated();
+      // Solo administradores pueden escribir en el histórico
+      allow write: if isAdmin();
+    }
+  }
+}
