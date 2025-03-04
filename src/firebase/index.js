@@ -52,6 +52,46 @@ const configuracionCollection = collection(db, 'configuracion')
 const pacientesCollection = collection(db, 'pacientes')
 const calendarioCollection = collection(db, 'calendario')
 
+// Método para garantizar que la configuración exista en localStorage
+const ensureConfigurationExists = () => {
+  try {
+    const defaultConfig = [
+      { manana: 2, tarde: 2 }, // Lunes
+      { manana: 2, tarde: 2 }, // Martes
+      { manana: 2, tarde: 2 }, // Miércoles
+      { manana: 2, tarde: 2 }, // Jueves
+      { manana: 2, tarde: 2 }, // Viernes
+      { manana: 1, tarde: 1 }, // Sábado
+      { manana: 1, tarde: 1 }  // Domingo
+    ];
+    
+    // Obtener la configuración actual
+    const currentConfig = getLocalCollection('configuracion');
+    
+    // Si no hay configuración o es inválida, guardar la configuración por defecto
+    if (!currentConfig || !Array.isArray(currentConfig) || currentConfig.length === 0) {
+      console.log('[DEV] Guardando configuración por defecto en localStorage');
+      saveLocalCollection('configuracion', defaultConfig);
+      return defaultConfig;
+    }
+    
+    return currentConfig;
+  } catch (error) {
+    console.error("Error al asegurar la existencia de la configuración:", error);
+    const defaultConfig = [
+      { manana: 2, tarde: 2 }, // Lunes
+      { manana: 2, tarde: 2 }, // Martes
+      { manana: 2, tarde: 2 }, // Miércoles
+      { manana: 2, tarde: 2 }, // Jueves
+      { manana: 2, tarde: 2 }, // Viernes
+      { manana: 1, tarde: 1 }, // Sábado
+      { manana: 1, tarde: 1 }  // Domingo
+    ];
+    saveLocalCollection('configuracion', defaultConfig);
+    return defaultConfig;
+  }
+};
+
 // Métodos de autenticación
 const loginWithEmail = async (email, password) => {
   try {
@@ -151,25 +191,8 @@ const getConfiguracion = async () => {
   try {
     if (simulateLocalStorage) {
       console.log('[DEV] Obteniendo configuración desde localStorage');
-      let configData = getLocalCollection('configuracion');
-      
-      // Si no hay configuración o es inválida, devolver configuración por defecto
-      if (!configData || configData.length === 0 || !Array.isArray(configData)) {
-        const defaultConfig = [
-          { manana: 2, tarde: 2 }, // Lunes
-          { manana: 2, tarde: 2 }, // Martes
-          { manana: 2, tarde: 2 }, // Miércoles
-          { manana: 2, tarde: 2 }, // Jueves
-          { manana: 2, tarde: 2 }, // Viernes
-          { manana: 1, tarde: 1 }, // Sábado
-          { manana: 1, tarde: 1 }  // Domingo
-        ];
-        
-        // Guardar configuración por defecto
-        saveLocalCollection('configuracion', defaultConfig);
-        return defaultConfig;
-      }
-      return configData;
+      // Asegurar que siempre exista una configuración válida
+      return ensureConfigurationExists();
     }
 
     // Firebase fallback
@@ -185,26 +208,8 @@ const getConfiguracion = async () => {
     } catch (firebaseError) {
       console.error("Error al obtener configuración desde Firebase, usando localStorage:", firebaseError);
       
-      // Si falla Firebase, intentar con localStorage
-      let configData = getLocalCollection('configuracion');
-      
-      // Si no hay datos en localStorage, usar valores por defecto
-      if (!configData || configData.length === 0) {
-        const defaultConfig = [
-          { manana: 2, tarde: 2 },
-          { manana: 2, tarde: 2 },
-          { manana: 2, tarde: 2 },
-          { manana: 2, tarde: 2 },
-          { manana: 2, tarde: 2 },
-          { manana: 1, tarde: 1 },
-          { manana: 1, tarde: 1 }
-        ];
-        // Guardar los valores por defecto
-        saveLocalCollection('configuracion', defaultConfig);
-        return defaultConfig;
-      }
-      
-      return configData;
+      // Si falla Firebase, usar ensureConfigurationExists para garantizar datos válidos
+      return ensureConfigurationExists();
     }
   } catch (error) {
     console.error("Error general al obtener configuración:", error);
@@ -218,6 +223,7 @@ const getConfiguracion = async () => {
       { manana: 1, tarde: 1 },
       { manana: 1, tarde: 1 }
     ];
+    saveLocalCollection('configuracion', defaultConfig);
     return defaultConfig;
   }
 }
@@ -508,25 +514,17 @@ const resetSemana = async () => {
 
 // Añadir función para inicializar localStorage con datos de ejemplo (opcional)
 const initializeLocalStorage = () => {
-  // Inicializar la configuración por defecto
-  let configData = getLocalCollection('configuracion');
-  if (!configData || configData.length === 0) {
-    const defaultConfig = [
-      { manana: 2, tarde: 2 },
-      { manana: 2, tarde: 2 },
-      { manana: 2, tarde: 2 },
-      { manana: 2, tarde: 2 },
-      { manana: 2, tarde: 2 },
-      { manana: 1, tarde: 1 },
-      { manana: 1, tarde: 1 }
-    ];
-    saveLocalCollection('configuracion', defaultConfig);
-    console.log('[DEV] Configuración inicializada con valores por defecto');
-  }
+  console.log('[DEV] Inicializando localStorage con datos iniciales');
+  
+  // Asegurarnos de que siempre hay una configuración disponible
+  ensureConfigurationExists();
   
   // Verificar si ya hay datos de pacientes
   const pacientes = getLocalCollection('pacientes');
-  if (pacientes.length > 0) return;
+  if (pacientes.length > 0) {
+    console.log('[DEV] Ya existen pacientes en localStorage, omitiendo inicialización de datos de ejemplo');
+    return;
+  }
   
   // Datos de ejemplo para desarrollo
   const ejemploPacientes = [

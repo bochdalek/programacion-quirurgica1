@@ -98,6 +98,7 @@
       <div class="text-center">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mx-auto"></div>
         <p class="mt-4 text-lg text-gray-700">Inicializando aplicación...</p>
+        <p class="mt-2 text-sm text-gray-500">Por favor espere...</p>
       </div>
     </div>
 
@@ -124,7 +125,9 @@ export default {
       menuAbierto: false,
       dataLoaded: false,
       currentYear: new Date().getFullYear(),
-      appMounted: false // Flag to control when components should be rendered
+      appMounted: false, // Flag to control when components should be rendered
+      loadRetries: 0,
+      maxLoadRetries: 5
     }
   },
   computed: {
@@ -140,18 +143,49 @@ export default {
         this.$store.dispatch('logout');
       }
     },
+    
+    // Método mejorado para cargar datos iniciales con reintentos
     loadInitialData() {
       console.log("Intentando cargar datos iniciales. Autenticado:", this.isAuthenticated, "Ruta:", this.$route?.name);
       
       if (this.isAuthenticated && !this.dataLoaded && this.$route?.name !== 'forbidden') {
-        console.log("Cargando datos iniciales...");
+        console.log(`Cargando datos iniciales (intento ${this.loadRetries + 1}/${this.maxLoadRetries})...`);
+        
         this.$store.dispatch('fetchInitialData')
-          .then(() => {
-            console.log("Datos iniciales cargados con éxito");
+          .then((result) => {
+            console.log("Datos iniciales cargados", result ? "con éxito" : "con resultado no definido");
             this.dataLoaded = true;
+            this.loadRetries = 0; // Reiniciar contador de intentos
+            
+            // Notificar al usuario que los datos están cargados
+            this.$store.dispatch('notify', {
+              message: 'Aplicación inicializada correctamente',
+              type: 'success',
+              timeout: 3000
+            });
           })
           .catch(error => {
             console.error("Error al cargar datos iniciales:", error);
+            this.loadRetries++;
+            
+            if (this.loadRetries < this.maxLoadRetries) {
+              // Realizar un nuevo intento después de un retraso exponencial
+              console.log(`Reintentando carga de datos en ${300 * Math.pow(2, this.loadRetries)}ms...`);
+              setTimeout(() => {
+                this.loadInitialData();
+              }, 300 * Math.pow(2, this.loadRetries));
+            } else {
+              console.error("Se alcanzó el máximo de reintentos para cargar los datos iniciales");
+              // Notificar al usuario
+              this.$store.dispatch('notify', {
+                message: 'No se pudieron cargar todos los datos. Algunas funciones pueden estar limitadas.',
+                type: 'error',
+                timeout: 0 // Sin timeout para que el usuario pueda leerlo
+              });
+              
+              // Marcar como cargado de todos modos para permitir la interacción
+              this.dataLoaded = true;
+            }
           });
       }
     },
@@ -183,6 +217,20 @@ export default {
     // Descartar mensaje de error
     dismissError() {
       this.$store.commit('setError', null);
+    },
+    
+    // Método para precargar configuración antes de montar la app
+    preloadConfiguration() {
+      console.log("Precargando configuración...");
+      return this.$store.dispatch('fetchConfiguracion')
+        .then(() => {
+          console.log("Configuración precargada con éxito");
+          return true;
+        })
+        .catch(error => {
+          console.error("Error al precargar configuración:", error);
+          return false;
+        });
     }
   },
   watch: {
@@ -198,7 +246,7 @@ export default {
       }
     },
     '$route.name'() {
-      if (this.appMounted) {
+      if (this.appMounted && this.isAuthenticated && !this.dataLoaded) {
         this.loadInitialData();
       }
     }
@@ -208,15 +256,21 @@ export default {
   },
   mounted() {
     // Utilizamos nextTick para asegurar que el DOM está listo
-    this.$nextTick(() => {
-      // Solución para el problema de timing: establecer un timeout más largo
+    this.$nextTick(async () => {
+      // Precargar configuración antes de mostrar la aplicación
+      await this.preloadConfiguration();
+      
+      // Retrasamos la inicialización de la UI para asegurar que todo esté listo
       setTimeout(() => {
         this.appMounted = true;
-        // Esperar un poco más antes de intentar cargar datos
+        
+        // Esperar un poco más antes de intentar cargar datos adicionales
         setTimeout(() => {
-          this.loadInitialData();
-        }, 100);
-      }, 300);
+          if (this.isAuthenticated) {
+            this.loadInitialData();
+          }
+        }, 800);
+      }, 1000);
     });
   }
 }

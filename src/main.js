@@ -8,6 +8,9 @@ import './index.css'
 // Importar Vuelidate correctamente
 import { useVuelidate } from '@vuelidate/core'
 
+// Variable para controlar si la configuración se ha precargado
+let configPreloaded = false;
+
 // Inicialización de logging mejorado
 const setupDebugLogging = () => {
   // Solo aplica en ambiente de desarrollo
@@ -117,6 +120,21 @@ const startMedicationTimer = () => {
   }, 60000); // 60000 ms = 1 minuto
 };
 
+// Función para precargar configuración y datos esenciales
+const preloadConfiguration = async () => {
+  if (configPreloaded) return;
+  
+  try {
+    console.log("Precargando configuración...");
+    await store.dispatch('fetchConfiguracion');
+    configPreloaded = true;
+    console.log("Configuración precargada con éxito");
+  } catch (error) {
+    console.error("Error al precargar configuración:", error);
+    // No marcamos como precargado para permitir reintentos
+  }
+};
+
 // Función para configurar y montar la aplicación
 const setupAndMountApp = async () => {
   try {
@@ -161,6 +179,9 @@ const setupAndMountApp = async () => {
       window.store = store;
     }
     
+    // Precargar configuración antes de inicializar autenticación
+    await preloadConfiguration();
+    
     // Inicializar autenticación antes de montar la app
     console.log("Inicializando autenticación...");
     await store.dispatch('initAuth');
@@ -180,8 +201,20 @@ const setupAndMountApp = async () => {
       // Retrasar ligeramente para asegurar que la app está montada
       setTimeout(() => {
         startMedicationTimer();
-      }, 500);
+      }, 1000);
     }
+    
+    // Precarga final de datos de la aplicación
+    setTimeout(async () => {
+      try {
+        if (store.getters.isAuthenticated) {
+          await store.dispatch('fetchInitialData');
+          console.log("Datos iniciales cargados automáticamente después de montar la aplicación");
+        }
+      } catch (error) {
+        console.error("Error al precargar datos iniciales:", error);
+      }
+    }, 1500);
   } catch (error) {
     console.error("Error crítico al configurar la aplicación:", error);
     
@@ -212,8 +245,49 @@ const setupAndMountApp = async () => {
   }
 };
 
+// Iniciar la aplicación con reintentos
+const startApp = async () => {
+  let attempts = 0;
+  const maxAttempts = 3;
+  
+  while (attempts < maxAttempts) {
+    try {
+      console.log(`Intento ${attempts + 1} de iniciar la aplicación...`);
+      await setupAndMountApp();
+      console.log("Aplicación iniciada correctamente");
+      return; // Salir si la app se inició correctamente
+    } catch (error) {
+      attempts++;
+      console.error(`Error en intento ${attempts} de iniciar la aplicación:`, error);
+      
+      if (attempts < maxAttempts) {
+        // Esperar antes del siguiente intento
+        console.log(`Reintentando en ${attempts * 1000}ms...`);
+        await new Promise(resolve => setTimeout(resolve, attempts * 1000));
+      } else {
+        console.error("No se pudo iniciar la aplicación después de varios intentos");
+        
+        // Mostrar mensaje de error final
+        const errorFinal = document.createElement('div');
+        errorFinal.innerHTML = `
+          <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.1);">
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; text-align: center;">
+              <h1 style="color: #e53e3e; margin-bottom: 10px;">Error crítico</h1>
+              <p>La aplicación no pudo iniciarse después de varios intentos. Por favor, recargue la página o contacte con el administrador.</p>
+              <button onclick="location.reload()" style="background: #3182ce; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-top: 15px; cursor: pointer;">
+                Reiniciar aplicación
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(errorFinal);
+      }
+    }
+  }
+};
+
 // Iniciar la aplicación
-setupAndMountApp();
+startApp();
 
 // Limpieza de timers cuando la app se cierra
 window.addEventListener('beforeunload', () => {

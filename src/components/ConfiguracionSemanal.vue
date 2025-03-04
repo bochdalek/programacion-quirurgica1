@@ -1,4 +1,3 @@
-// src/components/ConfiguracionSemanal.vue - Fixed version
 <template>
   <div class="space-y-6">
     <h2 class="text-2xl font-bold text-gray-800 border-b pb-2">Configuración Semanal de Quirófanos</h2>
@@ -62,7 +61,7 @@ export default {
       diasSemanaLocal: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
       configuracionInicializada: false,
       initializationAttempts: 0,
-      maxAttempts: 5
+      maxAttempts: 10 // Aumentado de 5 a 10 para dar más oportunidades
     }
   },
   computed: {
@@ -76,73 +75,153 @@ export default {
       }
       
       try {
-        this.$store.commit('actualizarConfiguracion', JSON.parse(JSON.stringify(this.configuracionLocal)));
-        alert('Configuración guardada correctamente');
+        // Lógica para guardar la configuración
+        this.$store.dispatch('saveConfiguracion', JSON.parse(JSON.stringify(this.configuracionLocal)))
+          .then(() => {
+            alert('Configuración guardada correctamente');
+          })
+          .catch((error) => {
+            console.error("Error al guardar configuración:", error);
+            alert(`Error al guardar configuración: ${error.message || 'Error desconocido'}`);
+          });
       } catch (error) {
-        console.error("Error al guardar configuración:", error);
+        console.error("Error al procesar la configuración:", error);
         alert(`Error al guardar configuración: ${error.message || 'Error desconocido'}`);
       }
     },
     
-    // Método para inicializar la configuración
+    // Método para inicializar la configuración con manejo mejorado de errores
     initializeConfiguration() {
       console.log("Intentando inicializar configuración. Intento:", this.initializationAttempts + 1);
       
-      // Verificar si tenemos acceso a los datos de configuración
-      if (this.configuracion && Array.isArray(this.configuracion) && this.configuracion.length > 0) {
-        // Inicializar la configuración con los valores existentes
-        this.configuracionLocal = this.configuracion.map(config => ({
-          manana: config.manana || 0,
-          tarde: config.tarde || 0
-        }));
+      try {
+        // Verificar si tenemos acceso a los datos de configuración
+        if (this.configuracion && Array.isArray(this.configuracion) && this.configuracion.length > 0) {
+          console.log("Usando configuración del store:", this.configuracion);
+          
+          // Inicializar la configuración con los valores existentes
+          this.configuracionLocal = this.configuracion.map(config => ({
+            manana: config.manana || 0,
+            tarde: config.tarde || 0
+          }));
+          
+          this.configuracionInicializada = true;
+          console.log("Configuración inicializada correctamente a partir de datos existentes");
+          return true;
+        }
         
-        this.configuracionInicializada = true;
-        console.log("Configuración inicializada correctamente a partir de datos existentes");
-        return true;
-      }
-      
-      // Si no hay datos de configuración, usar valores por defecto
-      if (this.initializationAttempts >= this.maxAttempts) {
-        console.log("Se alcanzó el máximo de intentos, inicializando con valores por defecto");
+        console.log("No hay configuración disponible en el store, intentando de nuevo...");
         
-        // Inicializar con valores por defecto
-        this.configuracionLocal = this.diasSemanaLocal.map((_, index) => ({
-          manana: index < 5 ? 2 : 1, // Lunes a Viernes: 2, Sábado y Domingo: 1
-          tarde: index < 5 ? 2 : 1
-        }));
+        // Si no hay datos de configuración, usar valores por defecto después de varios intentos
+        if (this.initializationAttempts >= this.maxAttempts) {
+          console.log("Se alcanzó el máximo de intentos, inicializando con valores por defecto");
+          
+          // Inicializar con valores por defecto
+          this.configuracionLocal = this.diasSemanaLocal.map((_, index) => ({
+            manana: index < 5 ? 2 : 1, // Lunes a Viernes: 2, Sábado y Domingo: 1
+            tarde: index < 5 ? 2 : 1
+          }));
+          
+          this.configuracionInicializada = true;
+          console.log("Configuración inicializada con valores por defecto");
+          return true;
+        }
+      } catch (error) {
+        console.error("Error durante la inicialización de la configuración:", error);
         
-        this.configuracionInicializada = true;
-        console.log("Configuración inicializada con valores por defecto");
-        return true;
+        // En caso de error, usar valores por defecto si hemos alcanzado el máximo de intentos
+        if (this.initializationAttempts >= this.maxAttempts) {
+          console.log("Error durante la inicialización, usando valores por defecto");
+          
+          // Inicializar con valores por defecto
+          this.configuracionLocal = this.diasSemanaLocal.map((_, index) => ({
+            manana: index < 5 ? 2 : 1, // Lunes a Viernes: 2, Sábado y Domingo: 1
+            tarde: index < 5 ? 2 : 1
+          }));
+          
+          this.configuracionInicializada = true;
+          return true;
+        }
       }
       
       this.initializationAttempts++;
       return false;
     },
     
-    // Método de inicialización con reintento
+    // Método mejorado de inicialización con reintento y carga manual
     attemptInitialization() {
       if (!this.initializeConfiguration()) {
-        // Si no se pudo inicializar, intentar de nuevo después de un retraso
-        setTimeout(() => {
-          this.attemptInitialization();
-        }, 500 * Math.pow(2, this.initializationAttempts)); // Retraso exponencial
+        // Si no se pudo inicializar, intentar cargar la configuración desde el store
+        try {
+          this.$store.dispatch('fetchConfiguracion')
+            .then(() => {
+              console.log("Configuración recuperada mediante acción fetchConfiguracion");
+              // Hacer otro intento de inicialización después de cargar los datos
+              this.$nextTick(() => {
+                if (!this.initializeConfiguration()) {
+                  // Si sigue fallando, intentar de nuevo después de un retraso
+                  setTimeout(() => {
+                    this.attemptInitialization();
+                  }, 500 * Math.pow(1.5, this.initializationAttempts)); // Retraso exponencial suavizado
+                }
+              });
+            })
+            .catch(error => {
+              console.error("Error al cargar configuración:", error);
+              // Intentar de nuevo después de un retraso
+              setTimeout(() => {
+                this.attemptInitialization();
+              }, 500 * Math.pow(1.5, this.initializationAttempts));
+            });
+        } catch (error) {
+          console.error("Error al intentar fetchConfiguracion:", error);
+          // Intentar de nuevo después de un retraso
+          setTimeout(() => {
+            this.attemptInitialization();
+          }, 500 * Math.pow(1.5, this.initializationAttempts));
+        }
       }
+    },
+    
+    // Método para forzar la inicialización con valores por defecto
+    forceDefaultInitialization() {
+      console.log("Forzando inicialización con valores por defecto");
+      
+      // Inicializar con valores por defecto
+      this.configuracionLocal = this.diasSemanaLocal.map((_, index) => ({
+        manana: index < 5 ? 2 : 1, // Lunes a Viernes: 2, Sábado y Domingo: 1
+        tarde: index < 5 ? 2 : 1
+      }));
+      
+      this.configuracionInicializada = true;
+      console.log("Configuración inicializada con valores por defecto (forzado)");
     }
   },
   created() {
     // Al crear el componente, intentar inicializar la configuración
+    console.log("Componente ConfiguracionSemanal creado, iniciando proceso de inicialización");
     this.attemptInitialization();
+    
+    // Establecer un tiempo límite para la inicialización
+    setTimeout(() => {
+      if (!this.configuracionInicializada) {
+        console.log("Tiempo límite de inicialización alcanzado, forzando valores por defecto");
+        this.forceDefaultInitialization();
+      }
+    }, 5000); // 5 segundos de tiempo límite
   },
   watch: {
     // Observar cambios en la configuración del store
     configuracion: {
       handler(newConfig) {
+        console.log("Cambio detectado en configuración:", newConfig);
         if (newConfig && Array.isArray(newConfig) && newConfig.length > 0 && !this.configuracionInicializada) {
+          console.log("Inicializando configuración desde watcher");
           this.initializeConfiguration();
         }
       },
-      immediate: true
+      immediate: true,
+      deep: true
     }
   }
 }

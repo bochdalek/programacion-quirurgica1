@@ -28,68 +28,80 @@ const store = createStore({
   },
   
   actions: {
-    // Cargar datos iniciales
+    // Cargar datos iniciales - Versión mejorada con mejor manejo de errores y secuencia
     async fetchInitialData({ dispatch }) {
       console.log("Iniciando carga de datos iniciales...");
       
       try {
         // Track load status
-        let loadSuccess = true;
+        let configLoaded = false;
         
-        // Load configuration first - most important
+        // Intentar cargar la configuración primero con reintentos
         try {
-          await dispatch('fetchConfiguracion');
-          console.log("Configuración cargada correctamente");
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              console.log(`Intento ${attempt} de cargar configuración...`);
+              await dispatch('fetchConfiguracion');
+              console.log("Configuración cargada correctamente");
+              configLoaded = true;
+              break;
+            } catch (configError) {
+              console.error(`Error en intento ${attempt} de cargar configuración:`, configError);
+              if (attempt < 3) {
+                // Esperar antes del siguiente intento
+                await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+              }
+            }
+          }
+          
+          if (!configLoaded) {
+            console.warn("No se pudo cargar la configuración después de múltiples intentos");
+          }
         } catch (configError) {
-          console.error('Error cargando configuración:', configError);
-          loadSuccess = false;
+          console.error('Error general al cargar configuración:', configError);
         }
         
-        // Load patient data - wrapped in try/catch blocks to continue even if some fail
-        try {
-          await dispatch('fetchPacientesUrgentes');
-        } catch (error) {
-          console.error('Error cargando pacientes urgentes:', error);
-          loadSuccess = false;
-        }
+        // Carga paralela de los datos de pacientes para optimizar el tiempo
+        const loadPromises = [
+          dispatch('fetchPacientesUrgentes').catch(error => {
+            console.error('Error cargando pacientes urgentes:', error);
+            return null;
+          }),
+          
+          dispatch('fetchPacientesPresentar').catch(error => {
+            console.error('Error cargando pacientes para presentar:', error);
+            return null;
+          }),
+          
+          dispatch('fetchPacientesNoProgMedicacion').catch(error => {
+            console.error('Error cargando pacientes no programables por medicación:', error);
+            return null;
+          }),
+          
+          dispatch('fetchPacientesNoProgPartesBlandas').catch(error => {
+            console.error('Error cargando pacientes no programables por partes blandas:', error);
+            return null;
+          }),
+          
+          dispatch('fetchPacientesPendientes').catch(error => {
+            console.error('Error cargando pacientes pendientes:', error);
+            return null;
+          }),
+          
+          dispatch('fetchCalendarioSemanal').catch(error => {
+            console.error('Error cargando calendario semanal:', error);
+            return null;
+          })
+        ];
         
-        try {
-          await dispatch('fetchPacientesPresentar');
-        } catch (error) {
-          console.error('Error cargando pacientes para presentar:', error);
-          loadSuccess = false;
-        }
+        // Esperar a que todas las promesas se resuelvan (incluso si algunas fallan)
+        await Promise.allSettled(loadPromises);
         
-        try {
-          await dispatch('fetchPacientesNoProgMedicacion');
-        } catch (error) {
-          console.error('Error cargando pacientes no programables por medicación:', error);
-          loadSuccess = false;
-        }
-        
-        try {
-          await dispatch('fetchPacientesNoProgPartesBlandas');
-        } catch (error) {
-          console.error('Error cargando pacientes no programables por partes blandas:', error);
-          loadSuccess = false;
-        }
-        
-        try {
-          await dispatch('fetchPacientesPendientes');
-        } catch (error) {
-          console.error('Error cargando pacientes pendientes:', error);
-          loadSuccess = false;
-        }
-        
-        try {
-          await dispatch('fetchCalendarioSemanal');
-        } catch (error) {
-          console.error('Error cargando calendario semanal:', error);
-          loadSuccess = false;
-        }
+        // Determinar si hubo algún error en la carga
+        const allSuccess = loadPromises.every(p => p !== null);
         
         // Notificar éxito o error parcial
-        if (loadSuccess) {
+        if (allSuccess && configLoaded) {
           dispatch('notify', {
             message: 'Datos cargados correctamente',
             type: 'success'
@@ -101,7 +113,7 @@ const store = createStore({
           });
         }
         
-        console.log("Carga de datos iniciales completada", loadSuccess ? "con éxito" : "con algunos errores");
+        console.log("Carga de datos iniciales completada");
       } catch (error) {
         console.error('Error general cargando datos iniciales:', error);
         // Notificar error
@@ -109,9 +121,6 @@ const store = createStore({
           message: 'Error al cargar datos: ' + (error.message || 'Error desconocido'),
           type: 'error'
         });
-        
-        // Even in case of error, return success to allow the app to continue
-        return true;
       }
       
       return true;
