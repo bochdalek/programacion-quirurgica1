@@ -57,7 +57,7 @@
           </div>
           <div class="flex justify-between border-b pb-1">
             <span>Pacientes Pendientes:</span>
-            <span>{{ pacientesPendientes.length }}</span>
+            <span>{{ safePacientesPendientes.length }}</span>
           </div>
           <div class="flex justify-between pb-1">
             <span>Eficiencia Quirófanos:</span>
@@ -106,15 +106,31 @@ export default {
       // Temporalmente devolvemos true mientras no se implementen los roles
       return true;
     },
+    // Safe versions of state properties to handle undefined values
+    safePacientesUrgentes() {
+      return this.pacientesUrgentes || [];
+    },
+    safePacientesPresentar() {
+      return this.pacientesPresentar || [];
+    },
+    safePacientesNoProgMedicacion() {
+      return this.pacientesNoProgMedicacion || [];
+    },
+    safePacientesNoProgPartesBlandas() {
+      return this.pacientesNoProgPartesBlandas || [];
+    },
+    safePacientesPendientes() {
+      return this.pacientesPendientes || [];
+    },
     totalPacientes() {
-      return this.pacientesUrgentes.length + 
-             this.pacientesPresentar.length + 
-             this.pacientesNoProgMedicacion.length + 
-             this.pacientesNoProgPartesBlandas.length + 
-             this.pacientesPendientes.length;
+      return this.safePacientesUrgentes.length + 
+             this.safePacientesPresentar.length + 
+             this.safePacientesNoProgMedicacion.length + 
+             this.safePacientesNoProgPartesBlandas.length + 
+             this.safePacientesPendientes.length;
     },
     pacientesNoProgramables() {
-      return this.pacientesNoProgMedicacion.length + this.pacientesNoProgPartesBlandas.length;
+      return this.safePacientesNoProgMedicacion.length + this.safePacientesNoProgPartesBlandas.length;
     }
   },
   methods: {
