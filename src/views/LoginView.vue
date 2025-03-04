@@ -49,9 +49,9 @@
           <div v-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
             {{ error }}
           </div>
-
-          <!-- Botón de emergencia para redirección (NUEVA ADICIÓN) -->
-          <div v-if="$store.getters.isAuthenticated" class="mt-4 text-center">
+  
+          <!-- Botón de emergencia para redirección -->
+          <div v-if="isAuthenticated" class="mt-4 text-center">
             <p class="text-sm text-gray-600 mb-2">Si ya has iniciado sesión pero sigues en esta página:</p>
             <button type="button" @click="forceRedirect" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
               Continuar a la aplicación
@@ -86,6 +86,11 @@
         error: null
       }
     },
+    computed: {
+      isAuthenticated() {
+        return this.$store.getters.isAuthenticated;
+      }
+    },
     methods: {
       async onSubmit() {
         this.isLoading = true;
@@ -105,7 +110,7 @@
         }
       },
       
-      // NUEVO MÉTODO para forzar la redirección manualmente
+      // Método para forzar la redirección manualmente
       forceRedirect() {
         const role = this.$store.getters.currentUser?.role;
         if (role) {
@@ -132,10 +137,14 @@
     // Redireccionar si ya está autenticado
     created() {
       console.log("LoginView creado, verificando autenticación");
-      if (this.$store.getters.isAuthenticated) {
-        console.log("Usuario ya autenticado, redirigiendo");
-        this.$store.dispatch('redirectBasedOnRole', this.$store.getters.currentUser.role);
-      }
+      
+      // Verificar después de un pequeño retraso para asegurar que el store esté listo
+      setTimeout(() => {
+        if (this.isAuthenticated) {
+          console.log("Usuario ya autenticado, redirigiendo");
+          this.forceRedirect();
+        }
+      }, 100);
     }
   }
   </script>

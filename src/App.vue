@@ -1,11 +1,12 @@
 <template>
   <div class="min-h-screen bg-gray-100">
-    <!-- Sistema de notificaciones -->
-    <NotificationsManager />
+    <!-- Sistema de notificaciones - accesible globalmente -->
+    <NotificationsManager v-if="isAppReady" />
     
-    <div v-if="isAuthenticated" class="container mx-auto px-4 py-8">
-      <!-- Barra de navegación principal -->
-      <nav class="bg-blue-600 text-white rounded-lg mb-6 shadow-lg">
+    <!-- Contenedor principal - un solo router-view para evitar problemas de montaje -->
+    <div v-if="isAppReady" class="container mx-auto px-4 py-8">
+      <!-- Barra de navegación condicional -->
+      <nav v-if="isAuthenticated" class="bg-blue-600 text-white rounded-lg mb-6 shadow-lg">
         <div class="container mx-auto px-6 py-3">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between">
             <div class="flex items-center justify-between mb-3 md:mb-0">
@@ -69,26 +70,37 @@
         </button>
       </div>
 
-      <!-- Contenido principal basado en la ruta -->
+      <!-- Contenido principal -->
       <div class="bg-white rounded-lg shadow-lg p-4 md:p-6">
-        <div v-if="isLoading" class="flex justify-center items-center py-8">
+        <div v-if="isAuthenticated && isLoading" class="flex justify-center items-center py-8">
           <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           <p class="ml-3 text-gray-700">Cargando datos...</p>
         </div>
-        <router-view v-else></router-view>
+        
+        <!-- Un solo router-view para toda la aplicación -->
+        <router-view v-slot="{ Component }">
+          <keep-alive>
+            <component :is="Component" />
+          </keep-alive>
+        </router-view>
       </div>
       
       <!-- Pie de página -->
-      <footer class="mt-8 text-center text-gray-500 text-sm">
+      <footer v-if="isAuthenticated" class="mt-8 text-center text-gray-500 text-sm">
         <p>Sistema de Programación Quirúrgica &copy; {{ currentYear }}</p>
       </footer>
     </div>
     
-    <!-- Si no está autenticado, mostrar vista de login -->
-    <router-view v-else></router-view>
+    <!-- Loading inicial mientras se prepara la app -->
+    <div v-if="!isAppReady" class="fixed inset-0 flex items-center justify-center bg-white">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mx-auto"></div>
+        <p class="mt-4 text-lg text-gray-700">Inicializando aplicación...</p>
+      </div>
+    </div>
 
     <!-- Botón de emergencia cuando el usuario está autenticado pero sigue en login -->
-    <div v-if="isAuthenticated && $route.path === '/login'" class="fixed bottom-5 right-5 z-50">
+    <div v-if="isAuthenticated && $route && $route.path === '/login'" class="fixed bottom-5 right-5 z-50">
       <button @click="redirectToCorrectPage" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded shadow-lg">
         Forzar navegación
       </button>
@@ -109,13 +121,14 @@ export default {
     return {
       menuAbierto: false,
       dataLoaded: false,
-      currentYear: new Date().getFullYear()
+      currentYear: new Date().getFullYear(),
+      isAppReady: false // Bandera para controlar la inicialización
     }
   },
   computed: {
     ...mapState({
-      isLoading: state => state.app.isLoading, 
-      error: state => state.app.error
+      isLoading: state => state.app?.isLoading || false, 
+      error: state => state.app?.error || null
     }),
     ...mapGetters(['isAuthenticated', 'currentUser', 'hasPermission', 'userRole'])
   },
@@ -126,8 +139,8 @@ export default {
       }
     },
     loadInitialData() {
-      console.log("Intentando cargar datos iniciales. Autenticado:", this.isAuthenticated, "Ruta:", this.$route.name);
-      if (this.isAuthenticated && !this.dataLoaded && this.$route.name !== 'forbidden') {
+      console.log("Intentando cargar datos iniciales. Autenticado:", this.isAuthenticated, "Ruta:", this.$route?.name);
+      if (this.isAuthenticated && !this.dataLoaded && this.$route?.name !== 'forbidden') {
         console.log("Cargando datos iniciales...");
         this.$store.dispatch('fetchInitialData')
           .then(() => {
@@ -187,10 +200,14 @@ export default {
   },
   created() {
     console.log("App.vue creado. Estado de autenticación:", this.isAuthenticated);
-    // Intentar cargar datos si el usuario ya está autenticado
-    this.$nextTick(() => {
+  },
+  mounted() {
+    // Marcar la app como lista después de un breve retraso
+    setTimeout(() => {
+      this.isAppReady = true;
+      // Intentar cargar datos si el usuario ya está autenticado
       this.loadInitialData();
-    });
+    }, 100);
   }
 }
 </script>

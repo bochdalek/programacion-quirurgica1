@@ -2,7 +2,7 @@
     <div class="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
       <transition-group name="notification">
         <div 
-          v-for="notification in notifications" 
+          v-for="notification in safeNotifications" 
           :key="notification.id"
           :class="[
             'p-4 rounded shadow-lg border flex items-start',
@@ -41,14 +41,16 @@
   </template>
   
   <script>
-  import { mapState } from 'vuex'
-  
+  /* eslint-disable no-unused-vars */
   export default {
     name: 'NotificationsManager',
     computed: {
-      ...mapState({
-        notifications: state => state.app.notifications
-      })
+      // Uso una computada intermedia para asegurar que siempre tenemos un array
+      safeNotifications() {
+        // Accedemos de forma segura a las notificaciones
+        const notifications = this.$store?.state?.app?.notifications;
+        return Array.isArray(notifications) ? notifications : [];
+      }
     },
     methods: {
       notificationClass(type) {
@@ -64,7 +66,9 @@
         }
       },
       closeNotification(id) {
-        this.$store.commit('removeNotification', id);
+        if (this.$store && typeof this.$store.commit === 'function') {
+          this.$store.commit('removeNotification', id);
+        }
       }
     }
   }

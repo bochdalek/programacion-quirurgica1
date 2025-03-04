@@ -1,3 +1,4 @@
+// src/components/ConfiguracionSemanal.vue - Fixed version
 <template>
   <div class="space-y-6">
     <h2 class="text-2xl font-bold text-gray-800 border-b pb-2">Configuración Semanal de Quirófanos</h2>
@@ -13,7 +14,7 @@
       </ul>
     </div>
     
-    <div class="grid grid-cols-1 md:grid-cols-7 gap-4">
+    <div v-if="diasSemana && diasSemana.length" class="grid grid-cols-1 md:grid-cols-7 gap-4">
       <div v-for="(dia, index) in diasSemana" :key="index" class="bg-gray-50 p-4 rounded-lg border">
         <h3 class="text-lg font-bold mb-3">{{ dia }}</h3>
         
@@ -33,6 +34,10 @@
           </div>
         </div>
       </div>
+    </div>
+    
+    <div v-else class="bg-gray-100 p-4 rounded text-center">
+      Cargando configuración...
     </div>
     
     <div class="flex justify-end mt-4">
@@ -58,11 +63,23 @@ export default {
   },
   methods: {
     guardarConfiguracion() {
+      if (!this.configuracionLocal || !this.diasSemana || this.configuracionLocal.length === 0) {
+        alert('Error: No hay configuración para guardar');
+        return;
+      }
+      
       this.$store.commit('actualizarConfiguracion', JSON.parse(JSON.stringify(this.configuracionLocal)));
       alert('Configuración guardada correctamente');
     },
+    
     initializeConfiguration() {
-      // Inicializar la configuración con valores por defecto si no existe
+      // Solo inicializar si tenemos los datos necesarios
+      if (!this.diasSemana || !this.diasSemana.length) {
+        console.log('Esperando datos de diasSemana para inicializar configuración');
+        return;
+      }
+      
+      // Inicializar la configuración con valores por defecto o existentes
       this.configuracionLocal = this.diasSemana.map((_, index) => {
         // Si hay configuración existente, usarla
         if (this.configuracion && this.configuracion[index]) {
@@ -80,12 +97,28 @@ export default {
     }
   },
   created() {
-    this.initializeConfiguration();
+    // No inicializar aquí, esperar a que los datos estén disponibles
   },
   mounted() {
-    // Por seguridad, volver a inicializar si no tiene los datos correctos
-    if (!this.configuracionLocal || this.configuracionLocal.length !== this.diasSemana.length) {
-      this.initializeConfiguration();
+    // Intentar inicializar cuando el componente esté montado
+    this.initializeConfiguration();
+  },
+  watch: {
+    // Observar cambios en diasSemana y configuracion para inicializar cuando estén disponibles
+    diasSemana: {
+      handler(newVal) {
+        if (newVal && newVal.length) {
+          this.initializeConfiguration();
+        }
+      },
+      immediate: true
+    },
+    configuracion: {
+      handler() {
+        // Re-inicializar si cambia la configuración
+        this.initializeConfiguration();
+      },
+      immediate: true
     }
   }
 }

@@ -5,8 +5,8 @@ import router from './router'
 import store from './store'
 import './index.css'
 
-// Importar Vuelidate
-import { vuelidate } from '@vuelidate/core'
+// Importar Vuelidate correctamente
+import { useVuelidate } from '@vuelidate/core'
 
 // Configuración de logging mejorado
 const setupDebugLogging = () => {
@@ -40,18 +40,61 @@ const setupDebugLogging = () => {
   }
 };
 
-// Error handler global
+// Configurar logging mejorado
+setupDebugLogging();
+
+console.log("Iniciando aplicación...");
+
+// Crear la aplicación Vue antes de cualquier otro proceso
+const app = createApp(App);
+
+// Registrar plugins
+app.use(router);
+app.use(store);
+// Proporcionar useVuelidate a la aplicación
+app.provide('useVuelidate', useVuelidate);
+
+// Directiva para focus en elementos
+app.directive('focus', {
+  mounted(el) {
+    el.focus();
+  }
+});
+
+// Directiva para click-fuera
+app.directive('click-outside', {
+  mounted(el, binding) {
+    el.clickOutsideEvent = function(event) {
+      if (!(el === event.target || el.contains(event.target))) {
+        binding.value(event);
+      }
+    };
+    document.body.addEventListener('click', el.clickOutsideEvent);
+  },
+  unmounted(el) {
+    document.body.removeEventListener('click', el.clickOutsideEvent);
+  }
+});
+
+// Variable para el timer de medicación
+let medicacionTimer = null;
+
+// Configurar error handler global después de crear la app pero antes de montarla
 const setupGlobalErrorHandler = () => {
   window.onerror = function(message, source, lineno, colno, error) {
     console.error(`Error global: ${message} en ${source}:${lineno}:${colno}`, error);
     
-    // Evitar notificaciones duplicadas
-    if (store.state.app.error !== message) {
-      store.commit('setError', message);
-      store.dispatch('notify', {
-        message: `Error: ${message}`,
-        type: 'error'
-      });
+    try {
+      // Evitar notificaciones duplicadas
+      if (store.state.app && store.state.app.error !== message) {
+        store.commit('setError', message);
+        store.dispatch('notify', {
+          message: `Error: ${message}`,
+          type: 'error'
+        });
+      }
+    } catch (e) {
+      console.error("Error al manejar el error global:", e);
     }
     
     return false; // Permitir el comportamiento por defecto
@@ -61,106 +104,72 @@ const setupGlobalErrorHandler = () => {
   window.addEventListener('unhandledrejection', function(event) {
     console.error('Promesa rechazada no manejada:', event.reason);
     
-    store.dispatch('notify', {
-      message: `Error asíncrono: ${event.reason.message || 'Error desconocido'}`,
-      type: 'error'
-    });
+    try {
+      store.dispatch('notify', {
+        message: `Error asíncrono: ${event.reason?.message || 'Error desconocido'}`,
+        type: 'error'
+      });
+    } catch (e) {
+      console.error("Error al notificar una promesa rechazada:", e);
+    }
   });
 };
 
-// Configurar logging mejorado
-setupDebugLogging();
-
-console.log("Iniciando aplicación...");
-
-// Configurar manejador de errores global
+// Configurar error handler global
 setupGlobalErrorHandler();
 
-// Configuración de timers para actualizar tiempo de medicación
-let medicacionTimer = null;
+// Exponer el store en window para depuración en desarrollo
+if (process.env.NODE_ENV !== 'production') {
+  window.store = store;
+}
 
-// Inicializa el estado de autenticación inmediatamente
-store.dispatch('initAuth').then(() => {
-  console.log("Autenticación inicializada, creando app Vue");
-  // Luego crea la instancia de la app
-  const app = createApp(App);
-  
-  // Registrar el router y el store
-  app.use(router);
-  app.use(store);
-  app.use(vuelidate);
-  
-  // Directiva para focus en elementos
-  app.directive('focus', {
-    mounted(el) {
-      el.focus();
-    }
-  });
-  
-  // Directiva para click-fuera
-  app.directive('click-outside', {
-    mounted(el, binding) {
-      el.clickOutsideEvent = function(event) {
-        if (!(el === event.target || el.contains(event.target))) {
-          binding.value(event);
+// Inicializa el estado de autenticación y después monta la app
+store.dispatch('initAuth')
+  .then(() => {
+    console.log("Autenticación inicializada, montando app Vue");
+    
+    // Montar la aplicación
+    app.mount('#app');
+    console.log("Aplicación montada correctamente");
+    
+    // Iniciar temporizador para medicación si el usuario está autenticado
+    if (store.getters.isAuthenticated) {
+      console.log("Usuario autenticado, iniciando timer de medicación");
+      medicacionTimer = setInterval(() => {
+        if (store.getters.isAuthenticated) {
+          store.dispatch('actualizarTiempoMedicacion').catch(error => {
+            console.error("Error al actualizar tiempo de medicación:", error);
+          });
         }
-      };
-      document.body.addEventListener('click', el.clickOutsideEvent);
-    },
-    unmounted(el) {
-      document.body.removeEventListener('click', el.clickOutsideEvent);
+      }, 60000); // 60000 ms = 1 minuto
+    }
+  })
+  .catch(error => {
+    console.error("Error al inicializar autenticación:", error);
+    
+    // Mostrar error de inicialización
+    const errorElement = document.createElement('div');
+    errorElement.innerHTML = `
+      <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.1);">
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; text-align: center;">
+          <h1 style="color: #e53e3e; margin-bottom: 10px;">Error de inicialización</h1>
+          <p>No se pudo inicializar la aplicación. Por favor, intente nuevamente o contacte al administrador.</p>
+          <p style="color: #666; font-size: 0.8rem; margin-top: 10px;">${error.message}</p>
+          <button onclick="location.reload()" style="background: #3182ce; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-top: 15px; cursor: pointer;">
+            Reintentar
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(errorElement);
+    
+    // Intentamos montar la app de todos modos para mostrar la pantalla de error
+    try {
+      app.mount('#app');
+    } catch (mountError) {
+      console.error("No se pudo montar la aplicación:", mountError);
     }
   });
-  
-  // Exponer el store en window para depuración
-  if (process.env.NODE_ENV !== 'production') {
-    window.store = store;
-  }
-  
-  // Iniciar temporizador para actualizar tiempos de medicación
-  if (store.getters.isAuthenticated) {
-    console.log("Usuario autenticado, iniciando timer de medicación");
-    medicacionTimer = setInterval(() => {
-      // Solo actualizamos si el usuario está autenticado
-      if (store.getters.isAuthenticated) {
-        store.dispatch('actualizarTiempoMedicacion');
-      }
-    }, 60000); // 60000 ms = 1 minuto
-  }
-  
-  // Monta la aplicación
-  app.mount('#app');
-  console.log("Aplicación montada");
-  
-  // Retraso adicional para verificar redirección después de montaje
-  setTimeout(() => {
-    if (store.getters.isAuthenticated && router.currentRoute.value.name === 'login') {
-      console.log("Detección post-montaje: Usuario autenticado en login, forzando redirección");
-      const role = store.getters.currentUser?.role;
-      if (role) {
-        store.dispatch('redirectBasedOnRole', role);
-      }
-    }
-  }, 500);
-}).catch(error => {
-  console.error("Error al inicializar autenticación:", error);
-  
-  // Mostrar error de inicialización
-  const errorElement = document.createElement('div');
-  errorElement.innerHTML = `
-    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.1);">
-      <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; text-align: center;">
-        <h1 style="color: #e53e3e; margin-bottom: 10px;">Error de inicialización</h1>
-        <p>No se pudo inicializar la aplicación. Por favor, intente nuevamente o contacte al administrador.</p>
-        <p style="color: #666; font-size: 0.8rem; margin-top: 10px;">${error.message}</p>
-        <button onclick="location.reload()" style="background: #3182ce; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-top: 15px; cursor: pointer;">
-          Reintentar
-        </button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(errorElement);
-});
 
 // Limpieza de timers cuando la app se cierra
 window.addEventListener('beforeunload', () => {
