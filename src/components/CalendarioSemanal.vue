@@ -10,48 +10,112 @@
     
     <!-- Contenido del calendario solo cuando esté listo -->
     <div v-else class="grid grid-cols-1 md:grid-cols-7 gap-4">
-      <div v-for="(dia, index) in diasSemana" :key="index" class="bg-gray-50 p-4 rounded-lg border">
+      <div v-for="(dia, index) in diasSemanaLocal" :key="index" class="bg-gray-50 p-4 rounded-lg border">
         <h3 class="text-lg font-bold mb-3">{{ dia }}</h3>
         
-        <div v-if="!calendarioSeguro[index] || !calendarioSeguro[index].quirofanos || calendarioSeguro[index].quirofanos.length === 0" 
+        <div v-if="!calendarioSeguro[index] || !calendarioSeguro[index].manana || calendarioSeguro[index].manana.length === 0" 
              class="text-gray-500 text-sm py-4 text-center">
           No hay pacientes programados
         </div>
         
         <div v-else>
-          <div v-for="(quirofano, qIndex) in calendarioSeguro[index].quirofanos" :key="`q-${qIndex}`" 
-               class="mb-3 border rounded p-2 bg-white">
-            <div class="font-medium bg-blue-50 p-1 mb-1">Quirófano {{ qIndex + 1 }}</div>
+          <!-- Turno mañana -->
+          <div v-if="calendarioSeguro[index].manana && calendarioSeguro[index].manana.length > 0">
+            <h4 class="font-semibold mb-2 bg-blue-100 p-1 rounded">Turno Mañana</h4>
             
-            <!-- Verificar si es una entrada simple o un array de pacientes -->
-            <template v-if="Array.isArray(quirofano)">
-              <div v-for="(paciente, pIndex) in quirofano" :key="`p-${pIndex}`" 
-                   class="mb-1 last:mb-0 p-2 border-b last:border-0">
-                <p class="font-medium">{{ paciente?.nombre || 'Paciente sin nombre' }}</p>
-                <p class="text-sm">
-                  {{ paciente?.tipoFractura || 'Tipo no especificado' }}
-                  <span v-if="paciente?.detallesFractura" class="text-gray-500">
-                    ({{ paciente.detallesFractura }})
-                  </span>
-                </p>
-              </div>
-            </template>
-            <template v-else-if="quirofano">
-              <div class="p-2">
-                <p class="font-medium">{{ quirofano?.nombre || 'Paciente sin nombre' }}</p>
-                <p class="text-sm">
-                  {{ quirofano?.tipoFractura || 'Tipo no especificado' }}
-                  <span v-if="quirofano?.detallesFractura" class="text-gray-500">
-                    ({{ quirofano.detallesFractura }})
-                  </span>
-                </p>
-              </div>
-            </template>
-            <template v-else>
-              <div class="text-gray-500 text-sm py-2 text-center">
-                Quirófano sin asignaciones
-              </div>
-            </template>
+            <div v-for="(quirofano, qIndex) in calendarioSeguro[index].manana" :key="`m-${qIndex}`" 
+                 class="mb-3 border rounded p-2 bg-white">
+              <div class="font-medium bg-blue-50 p-1 mb-1">Quirófano {{ qIndex + 1 }}</div>
+              
+              <!-- Verificar si tiene structure de slots -->
+              <template v-if="quirofano && quirofano.slots">
+                <div v-for="(paciente, pIndex) in quirofano.slots" :key="`slot-${pIndex}`" 
+                     class="mb-1 last:mb-0 p-2 border-b last:border-0">
+                  <div v-if="paciente">
+                    <p class="font-medium">{{ paciente.nombre || 'Paciente sin nombre' }}</p>
+                    <p class="text-sm">
+                      {{ paciente.tipoFractura || 'Tipo no especificado' }}
+                      <span v-if="paciente.detallesFractura" class="text-gray-500">
+                        ({{ paciente.detallesFractura }})
+                      </span>
+                    </p>
+                  </div>
+                  <div v-else class="text-gray-400 text-sm">
+                    Slot disponible
+                  </div>
+                </div>
+              </template>
+              <!-- Formato antiguo para compatibilidad -->
+              <template v-else-if="quirofano">
+                <div class="p-2">
+                  <p class="font-medium">{{ quirofano.nombre || 'Paciente sin nombre' }}</p>
+                  <p class="text-sm">
+                    {{ quirofano.tipoFractura || 'Tipo no especificado' }}
+                    <span v-if="quirofano.detallesFractura" class="text-gray-500">
+                      ({{ quirofano.detallesFractura }})
+                    </span>
+                  </p>
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-gray-500 text-sm py-2 text-center">
+                  Quirófano sin asignaciones
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- Turno tarde -->
+          <div v-if="calendarioSeguro[index].tarde && calendarioSeguro[index].tarde.length > 0">
+            <h4 class="font-semibold mb-2 bg-purple-100 p-1 rounded">Turno Tarde</h4>
+            
+            <div v-for="(quirofano, qIndex) in calendarioSeguro[index].tarde" :key="`t-${qIndex}`" 
+                 class="mb-3 border rounded p-2 bg-white">
+              <div class="font-medium bg-purple-50 p-1 mb-1">Quirófano {{ qIndex + 1 }}</div>
+              
+              <!-- Verificar si tiene structure de slots -->
+              <template v-if="quirofano && quirofano.slots">
+                <div v-for="(paciente, pIndex) in quirofano.slots" :key="`slot-${pIndex}`" 
+                     class="mb-1 last:mb-0 p-2 border-b last:border-0">
+                  <div v-if="paciente">
+                    <p class="font-medium">{{ paciente.nombre || 'Paciente sin nombre' }}</p>
+                    <p class="text-sm">
+                      {{ paciente.tipoFractura || 'Tipo no especificado' }}
+                      <span v-if="paciente.detallesFractura" class="text-gray-500">
+                        ({{ paciente.detallesFractura }})
+                      </span>
+                    </p>
+                  </div>
+                  <div v-else class="text-gray-400 text-sm">
+                    Slot disponible
+                  </div>
+                </div>
+              </template>
+              <!-- Formato antiguo para compatibilidad -->
+              <template v-else-if="quirofano">
+                <div class="p-2">
+                  <p class="font-medium">{{ quirofano.nombre || 'Paciente sin nombre' }}</p>
+                  <p class="text-sm">
+                    {{ quirofano.tipoFractura || 'Tipo no especificado' }}
+                    <span v-if="quirofano.detallesFractura" class="text-gray-500">
+                      ({{ quirofano.detallesFractura }})
+                    </span>
+                  </p>
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-gray-500 text-sm py-2 text-center">
+                  Quirófano sin asignaciones
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- Mensaje si no hay quirófanos configurados -->
+          <div v-if="(!calendarioSeguro[index].manana || calendarioSeguro[index].manana.length === 0) && 
+                      (!calendarioSeguro[index].tarde || calendarioSeguro[index].tarde.length === 0)" 
+               class="text-gray-500 text-sm py-4 text-center">
+            No hay quirófanos configurados para este día
           </div>
         </div>
       </div>
@@ -68,83 +132,65 @@ export default {
     return {
       dataReady: false,
       retryCount: 0,
-      maxRetries: 3
+      maxRetries: 3,
+      diasSemanaLocal: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
     }
   },
   computed: {
-    ...mapState(['diasSemana', 'configuracion']),
+    ...mapState({
+      diasSemana: state => state.calendar?.diasSemana || [],
+      configuracion: state => state.calendar?.configuracion || [],
+      calendarioSemanalStore: state => state.calendar?.calendarioSemanal || []
+    }),
     // Safe version of calendarioSemanal that handles null/undefined values
     calendarioSeguro() {
-      const calendario = this.$store.state.calendarioSemanal;
-      
       // If calendario is not available yet, return an empty array
-      if (!calendario || !Array.isArray(calendario)) {
-        return [];
+      if (!this.calendarioSemanalStore || !Array.isArray(this.calendarioSemanalStore)) {
+        return Array(7).fill().map(() => ({ manana: [], tarde: [] }));
       }
       
       // Return a secured version that won't cause null/undefined errors
-      return calendario.map(dia => {
+      return this.calendarioSemanalStore.map((dia) => {
         if (!dia) {
-          return { quirofanos: [] };
+          return { manana: [], tarde: [] };
         }
         
-        // Check if the day has quirofanos property
-        if (!dia.quirofanos) {
-          return { 
-            ...dia,
-            quirofanos: []
-          };
-        }
-        
-        return dia;
+        // Asegurar que tiene estructura básica
+        return {
+          manana: Array.isArray(dia.manana) ? dia.manana : [],
+          tarde: Array.isArray(dia.tarde) ? dia.tarde : []
+        };
       });
     }
   },
   methods: {
-    // Método para cargar datos con reintentos
+    // Método mejorado para cargar datos con reintentos
     loadData() {
       // Reset the data ready flag
       this.dataReady = false;
       
-      // Check if data is already available
-      if (
-        this.diasSemana && 
-        this.diasSemana.length && 
-        this.$store.state.calendarioSemanal
-      ) {
-        console.log("Datos del calendario disponibles inmediatamente");
-        this.dataReady = true;
-        return;
-      }
-      
-      // Try to load data with exponential backoff
-      const attemptLoad = () => {
-        this.retryCount++;
-        
-        console.log(`Intento ${this.retryCount} de cargar datos del calendario`);
-        
-        if (
-          this.diasSemana && 
-          this.diasSemana.length && 
-          this.$store.state.calendarioSemanal
-        ) {
+      // Dispatch action to load calendar data
+      this.$store.dispatch('fetchCalendarioSemanal')
+        .then(() => {
           console.log("Datos del calendario cargados correctamente");
           this.dataReady = true;
-        } else if (this.retryCount < this.maxRetries) {
-          // Retry with exponential backoff
-          const delay = Math.pow(2, this.retryCount) * 100;
-          console.log(`Reintentando en ${delay}ms`);
+        })
+        .catch(error => {
+          console.error("Error al cargar datos del calendario:", error);
           
-          setTimeout(attemptLoad, delay);
-        } else {
-          console.error("No se pudieron cargar los datos del calendario después de varios intentos");
-          // Set data ready anyway to show empty state
-          this.dataReady = true;
-        }
-      };
-      
-      // Start the first attempt
-      attemptLoad();
+          // Si hay error, intentar cargar datos básicos
+          if (this.retryCount < this.maxRetries) {
+            this.retryCount++;
+            const delay = Math.pow(2, this.retryCount) * 100;
+            console.log(`Reintentando en ${delay}ms`);
+            
+            setTimeout(() => this.loadData(), delay);
+          } else {
+            console.error("No se pudieron cargar los datos del calendario después de varios intentos");
+            // Set data ready anyway to show empty state
+            this.dataReady = true;
+          }
+        });
     }
   },
   mounted() {
@@ -153,10 +199,13 @@ export default {
   },
   watch: {
     // Watch for changes in store state to refresh data
-    '$store.state.calendarioSemanal': {
-      handler() {
-        this.dataReady = true;
-      }
+    'calendarioSemanalStore': {
+      handler(newVal) {
+        if (newVal && Array.isArray(newVal)) {
+          this.dataReady = true;
+        }
+      },
+      deep: true
     }
   }
 }

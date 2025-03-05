@@ -24,7 +24,17 @@ const getLocalCollection = (collectionName) => {
       localStorage.setItem(`dev_${collectionName}`, JSON.stringify([]));
       return [];
     }
-    return JSON.parse(data);
+
+    // Intentamos parsear los datos
+    try {
+      const parsedData = JSON.parse(data);
+      return parsedData;
+    } catch (parseError) {
+      console.error(`Error al parsear colección ${collectionName}:`, parseError);
+      // Si hay error al parsear, inicializar con array vacío
+      localStorage.setItem(`dev_${collectionName}`, JSON.stringify([]));
+      return [];
+    }
   } catch (error) {
     console.error(`Error al leer colección ${collectionName} de localStorage:`, error);
     return [];
@@ -33,8 +43,21 @@ const getLocalCollection = (collectionName) => {
 
 const saveLocalCollection = (collectionName, data) => {
   try {
+    // Validar que data sea un objeto válido
+    if (data === undefined || data === null) {
+      console.error(`Error: Intentando guardar datos undefined/null en ${collectionName}`);
+      return;
+    }
+
     console.log(`Guardando colección ${collectionName} en localStorage:`, data);
-    localStorage.setItem(`dev_${collectionName}`, JSON.stringify(data));
+    
+    // Intentar serializar y guardar
+    try {
+      const serializedData = JSON.stringify(data);
+      localStorage.setItem(`dev_${collectionName}`, serializedData);
+    } catch (serializeError) {
+      console.error(`Error al serializar datos para ${collectionName}:`, serializeError);
+    }
   } catch (error) {
     console.error(`Error al guardar colección ${collectionName} en localStorage:`, error);
   }
@@ -258,6 +281,110 @@ const updateConfiguracion = async (id, data) => {
   }
 };
 
+// Método mejorado para obtener el calendario
+const getCalendarioSemanal = async () => {
+  try {
+    if (simulateLocalStorage) {
+      console.log('[DEV] Obteniendo calendario desde localStorage');
+      const calendario = getLocalCollection('calendario');
+      
+      // Si el calendario está vacío o no existe, inicializar con estructura básica
+      if (!calendario || !Array.isArray(calendario) || calendario.length === 0) {
+        console.log('[DEV] Calendario no encontrado o vacío, inicializando con estructura básica');
+        const calendarioVacio = Array(7).fill().map(() => ({
+          manana: [],
+          tarde: []
+        }));
+        saveLocalCollection('calendario', calendarioVacio);
+        return calendarioVacio;
+      }
+      
+      return calendario;
+    }
+
+    // Código original para Firebase
+    try {
+      const calendarSnapshot = await getDocs(calendarioCollection)
+      const calendario = []
+      
+      calendarSnapshot.forEach((doc) => {
+        calendario.push({
+          id: doc.id,
+          ...doc.data()
+        })
+      })
+      
+      if (calendario.length === 0) {
+        // Si no hay datos, inicializar con estructura básica
+        const calendarioVacio = Array(7).fill().map(() => ({
+          manana: [],
+          tarde: []
+        }));
+        
+        // No hacemos await porque no necesitamos esperar a que se guarde
+        updateCalendario('actual', calendarioVacio).catch(error => 
+          console.error("Error al inicializar calendario vacío:", error)
+        );
+        
+        return calendarioVacio;
+      }
+      
+      return calendario;
+    } catch (firebaseError) {
+      console.error("Error al obtener calendario desde Firebase, usando localStorage:", firebaseError);
+      return getLocalCollection('calendario') || Array(7).fill().map(() => ({
+        manana: [],
+        tarde: []
+      }));
+    }
+  } catch (error) {
+    console.error("Error general al obtener calendario:", error);
+    // Devolver estructura básica en caso de error
+    const calendarioVacio = Array(7).fill().map(() => ({
+      manana: [],
+      tarde: []
+    }));
+    return calendarioVacio;
+  }
+};
+
+const updateCalendario = async (id, data) => {
+  try {
+    // Validar que el ID no esté vacío
+    if (!id) {
+      console.error("Error: ID de calendario no válido para actualización:", id);
+      throw new Error("ID de calendario no válido");
+    }
+    
+    if (simulateLocalStorage) {
+      console.log(`[DEV] Actualizando calendario ${id} en localStorage`);
+      
+      // Si data no es un array o está vacío, inicializar con estructura básica
+      if (!Array.isArray(data) || data.length === 0) {
+        console.warn("Data no válida para actualizar calendario, inicializando con estructura básica");
+        data = Array(7).fill().map(() => ({
+          manana: [],
+          tarde: []
+        }));
+      }
+      
+      // Guardar directamente en localStorage para simplificar
+      saveLocalCollection('calendario', data);
+      return true;
+    }
+
+    // Código original para Firebase
+    await setDoc(doc(calendarioCollection, id), {
+      ...data,
+      updatedAt: serverTimestamp()
+    })
+    return true;
+  } catch (error) {
+    console.error("Error al actualizar calendario:", error)
+    throw error;
+  }
+};
+
 // Implementación completa de las funciones de pacientes
 const getPacientesByEstado = async (estado) => {
   try {
@@ -405,75 +532,6 @@ const deletePaciente = async (id) => {
   }
 };
 
-const getCalendarioSemanal = async () => {
-  try {
-    if (simulateLocalStorage) {
-      console.log('[DEV] Obteniendo calendario desde localStorage');
-      return getLocalCollection('calendario');
-    }
-
-    // Código original para Firebase
-    const calendarSnapshot = await getDocs(calendarioCollection)
-    const calendario = []
-    
-    calendarSnapshot.forEach((doc) => {
-      calendario.push({
-        id: doc.id,
-        ...doc.data()
-      })
-    })
-    
-    return calendario
-  } catch (error) {
-    console.error("Error al obtener calendario:", error)
-    throw error
-  }
-};
-
-const updateCalendario = async (id, data) => {
-  try {
-    // Validar que el ID no esté vacío
-    if (!id) {
-      console.error("Error: ID de calendario no válido para actualización:", id);
-      throw new Error("ID de calendario no válido");
-    }
-    
-    if (simulateLocalStorage) {
-      console.log(`[DEV] Actualizando calendario ${id} en localStorage`);
-      const calendario = getLocalCollection('calendario');
-      const index = calendario.findIndex(c => c.id === id);
-      
-      if (index >= 0) {
-        calendario[index] = {
-          ...calendario[index],
-          ...data,
-          updatedAt: new Date().toISOString()
-        };
-      } else {
-        calendario.push({
-          id,
-          ...data,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-      }
-      
-      saveLocalCollection('calendario', calendario);
-      return true;
-    }
-
-    // Código original para Firebase
-    await setDoc(doc(calendarioCollection, id), {
-      ...data,
-      updatedAt: serverTimestamp()
-    })
-    return true
-  } catch (error) {
-    console.error("Error al actualizar calendario:", error)
-    throw error
-  }
-};
-
 const resetSemana = async () => {
   try {
     if (simulateLocalStorage) {
@@ -498,7 +556,10 @@ const resetSemana = async () => {
       // Limpiar calendario
       saveLocalCollection('pacientes', pacientesActualizados);
       saveLocalCollection('historico', historico);
-      saveLocalCollection('calendario', []);
+      saveLocalCollection('calendario', Array(7).fill().map(() => ({
+        manana: [],
+        tarde: []
+      })));
       
       return true;
     }
@@ -517,6 +578,17 @@ const initializeLocalStorage = () => {
   
   // Asegurarnos de que siempre hay una configuración disponible
   ensureConfigurationExists();
+  
+  // Asegurar que siempre hay un calendario inicializado
+  const calendario = getLocalCollection('calendario');
+  if (!calendario || !Array.isArray(calendario) || calendario.length === 0) {
+    console.log('[DEV] Inicializando estructura de calendario básica');
+    const calendarioVacio = Array(7).fill().map(() => ({
+      manana: [],
+      tarde: []
+    }));
+    saveLocalCollection('calendario', calendarioVacio);
+  }
   
   // Verificar si ya hay datos de pacientes
   const pacientes = getLocalCollection('pacientes');

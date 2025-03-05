@@ -52,17 +52,35 @@ import {
       
       // Calendario semanal
       setCalendarioSemanal(state, calendario) {
-        state.calendarioSemanal = calendario || [];
+        // Asegurar que calendario sea un array válido
+        if (Array.isArray(calendario)) {
+          state.calendarioSemanal = calendario;
+        } else {
+          console.warn("Se intentó establecer un calendario inválido, inicializando vacío");
+          state.calendarioSemanal = Array(7).fill().map(() => ({
+            manana: [],
+            tarde: []
+          }));
+        }
       },
       
       actualizarCalendario(state, nuevoCalendario) {
-        state.calendarioSemanal = nuevoCalendario || [];
+        // Asegurar que nuevoCalendario sea un array válido
+        if (Array.isArray(nuevoCalendario)) {
+          state.calendarioSemanal = nuevoCalendario;
+        } else {
+          console.warn("Se intentó actualizar con un calendario inválido");
+          // No actualizamos si es inválido
+        }
       },
       
       inicializarDiaCalendario(state, dia) {
         // Asegurarse de que calendarioSemanal sea un array
         if (!Array.isArray(state.calendarioSemanal)) {
-          state.calendarioSemanal = [];
+          state.calendarioSemanal = Array(7).fill().map(() => ({
+            manana: [],
+            tarde: []
+          }));
         }
         
         // Asegurarse de que el día especificado sea un índice válido
@@ -80,7 +98,10 @@ import {
       inicializarQuirofanoConSlots(state, { dia, turno, quirofano }) {
         // Asegurarse de que calendarioSemanal sea un array
         if (!Array.isArray(state.calendarioSemanal)) {
-          state.calendarioSemanal = [];
+          state.calendarioSemanal = Array(7).fill().map(() => ({
+            manana: [],
+            tarde: []
+          }));
         }
         
         // Inicializar el día si no existe
@@ -104,7 +125,10 @@ import {
       asignarPacienteASlot(state, { dia, turno, quirofano, slot, paciente }) {
         // Asegurarse de que calendarioSemanal sea un array
         if (!Array.isArray(state.calendarioSemanal)) {
-          state.calendarioSemanal = [];
+          state.calendarioSemanal = Array(7).fill().map(() => ({
+            manana: [],
+            tarde: []
+          }));
         }
         
         // Inicializar el día si no existe
@@ -196,12 +220,36 @@ import {
         
         try {
           const calendario = await getCalendarioSemanal();
-          commit('setCalendarioSemanal', calendario);
+          
+          // Asegurar que el calendario tiene una estructura válida
+          if (!Array.isArray(calendario)) {
+            console.warn("El calendario recuperado no es un array, inicializando con estructura básica");
+            const calendarioInicial = Array(7).fill().map(() => ({
+              manana: [],
+              tarde: []
+            }));
+            commit('setCalendarioSemanal', calendarioInicial);
+          } else if (calendario.length === 0) {
+            console.warn("El calendario recuperado está vacío, inicializando con estructura básica");
+            const calendarioInicial = Array(7).fill().map(() => ({
+              manana: [],
+              tarde: []
+            }));
+            commit('setCalendarioSemanal', calendarioInicial);
+          } else {
+            console.log("Calendario recuperado correctamente:", calendario.length, "días");
+            commit('setCalendarioSemanal', calendario);
+          }
         } catch (error) {
           console.error("Error al cargar calendario semanal:", error);
           commit('setError', error.message, { root: true });
-          // Establecer un calendario vacío en caso de error
-          commit('setCalendarioSemanal', []);
+          
+          // Inicializar con un calendario vacío en caso de error
+          const calendarioVacio = Array(7).fill().map(() => ({
+            manana: [],
+            tarde: []
+          }));
+          commit('setCalendarioSemanal', calendarioVacio);
         } finally {
           commit('setLoading', false, { root: true });
         }
@@ -211,7 +259,18 @@ import {
         commit('setLoading', true, { root: true });
         
         try {
-          await updateCalendario('actual', state.calendarioSemanal);
+          // Verificar que el calendario tenga estructura válida
+          if (!Array.isArray(state.calendarioSemanal) || state.calendarioSemanal.length === 0) {
+            console.warn("El calendario a guardar no es válido, inicializando con estructura básica");
+            const calendarioInicial = Array(7).fill().map(() => ({
+              manana: [],
+              tarde: []
+            }));
+            await updateCalendario('actual', calendarioInicial);
+            commit('setCalendarioSemanal', calendarioInicial);
+          } else {
+            await updateCalendario('actual', state.calendarioSemanal);
+          }
         } catch (error) {
           console.error("Error al guardar calendario semanal:", error);
           commit('setError', error.message, { root: true });
@@ -225,7 +284,14 @@ import {
         commit('setLoading', true, { root: true });
         
         try {
+          // Asegurar que tenemos pacientes pendientes
           const pacientesPendientes = rootState.patients?.pacientesPendientes || [];
+          
+          if (!pacientesPendientes || pacientesPendientes.length === 0) {
+            console.log("No hay pacientes pendientes para programar");
+            commit('setLoading', false, { root: true });
+            return;
+          }
           
           // Ordenar por prioridad y tiempo de espera
           const pacientesOrdenados = [...pacientesPendientes].sort((a, b) => {
@@ -263,10 +329,18 @@ import {
           // Asegurarnos de que la configuración sea válida
           const configuracion = Array.isArray(state.configuracion) && state.configuracion.length > 0 
             ? state.configuracion 
-            : DEFAULT_CONFIG;
+            : [
+              { manana: 2, tarde: 2 }, // Lunes
+              { manana: 2, tarde: 2 }, // Martes
+              { manana: 2, tarde: 2 }, // Miércoles
+              { manana: 2, tarde: 2 }, // Jueves
+              { manana: 2, tarde: 2 }, // Viernes
+              { manana: 1, tarde: 1 }, // Sábado
+              { manana: 1, tarde: 1 }  // Domingo
+            ];
   
           // Para cada día de la semana
-          for (let dia = 0; dia < (state.diasSemana || DEFAULT_DIAS_SEMANA).length; dia++) {
+          for (let dia = 0; dia < 7; dia++) {
             try {
               // PARTE 1: Turno de tarde - fracturas de cadera siguiendo reglas específicas
               const quirofanosTarde = configuracion[dia] ? (configuracion[dia].tarde || 0) : 0;

@@ -48,7 +48,7 @@
     <div>
       <h3 class="text-lg font-semibold mb-4">Calendario Semanal</h3>
       <div class="grid grid-cols-1 md:grid-cols-7 gap-4">
-        <div v-for="(dia, diaIndex) in diasSemana" :key="diaIndex"
+        <div v-for="(dia, diaIndex) in safeDiasSemana" :key="diaIndex"
              class="bg-gray-50 p-4 rounded-lg border">
           <h3 class="text-lg font-bold mb-3">{{ dia }}</h3>
           <!-- Turno de mañana -->
@@ -138,7 +138,12 @@ export default {
     }
   },
   computed: {
-    ...mapState(['diasSemana', 'configuracion', 'pacientesPendientes', 'calendarioSemanal']),
+    ...mapState({
+      diasSemana: state => state.calendar?.diasSemana || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+      configuracion: state => state.calendar?.configuracion || [],
+      calendarioSemanal: state => state.calendar?.calendarioSemanal || [],
+      pacientesPendientes: state => state.patients?.pacientesPendientes || []
+    }),
     // Computed property para manejar de forma segura cuando pacientesPendientes o calendarioSemanal sea undefined
     safePacientesPendientes() {
       return this.pacientesPendientes || [];
@@ -185,6 +190,10 @@ export default {
       }
 
       this.$store.commit('asignarPacienteASlot', { dia, turno, quirofano, slot, paciente });
+      
+      // También guardar el calendario actualizado
+      this.$store.dispatch('saveCalendarioSemanal')
+        .catch(error => console.error("Error al guardar calendario:", error));
     },
     getPacienteEnSlot(dia, turno, quirofano, slot) {
       if (!this.safeCalendarioSemanal[dia] ||
@@ -203,6 +212,10 @@ export default {
 
         // Quitar el paciente del slot
         this.$store.commit('quitarPacienteDeSlot', { dia, turno, quirofano, slot });
+        
+        // Guardar cambios
+        this.$store.dispatch('saveCalendarioSemanal')
+          .catch(error => console.error("Error al guardar calendario:", error));
 
         // Devolver el paciente a la lista de pendientes
         if (paciente) {
@@ -303,10 +316,31 @@ export default {
       }
 
       if (confirm('¿Desea ejecutar el algoritmo de programación automática? Se programarán los pacientes pendientes siguiendo estas reglas:\n\n- Fracturas de cadera en quirófanos de tarde\n- Resto de lesiones en quirófanos de mañana\n- Se conservará el orden de prioridad según ingreso')) {
-        this.$store.dispatch('ejecutarAlgoritmo');
-        alert('Algoritmo ejecutado. El calendario ha sido actualizado.');
+        this.$store.dispatch('ejecutarAlgoritmo')
+          .then(() => {
+            alert('Algoritmo ejecutado. El calendario ha sido actualizado.');
+          })
+          .catch(error => {
+            console.error("Error al ejecutar algoritmo:", error);
+            alert(`Error al ejecutar algoritmo: ${error.message || 'Error desconocido'}`);
+          });
       }
     }
+  },
+  // Asegurar que tenemos todos los datos cargados
+  mounted() {
+    // Verificar si necesitamos cargar los datos
+    Promise.all([
+      // Si no hay calendario, cargarlo
+      !this.safeCalendarioSemanal.length ? 
+        this.$store.dispatch('fetchCalendarioSemanal') : Promise.resolve(),
+        
+      // Si no hay configuración, cargarla  
+      !this.safeConfiguracion.length ? 
+        this.$store.dispatch('fetchConfiguracion') : Promise.resolve()
+    ]).catch(error => {
+      console.error("Error al cargar datos iniciales:", error);
+    });
   }
 }
 </script>

@@ -37,6 +37,9 @@
                 <router-link v-if="hasPermission('view_calendar')" to="/noprogramables" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
                   No Programables
                 </router-link>
+                <router-link v-if="hasPermission('manage_calendar')" to="/pendientes" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
+                  Pendientes
+                </router-link>
                 <router-link v-if="hasPermission('manage_calendar')" to="/planificacion" class="hover:bg-blue-700 px-3 py-2 rounded block" active-class="bg-blue-800">
                   Planificación
                 </router-link>
