@@ -3,7 +3,7 @@
       <transition-group name="notification">
         <div 
           v-for="notification in safeNotifications" 
-          :key="notification.id || index"
+          :key="notification.id"
           :class="[
             'p-4 rounded shadow-lg border flex items-start',
             notificationClass(notification.type)

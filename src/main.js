@@ -127,11 +127,40 @@ const preloadConfiguration = async () => {
   try {
     console.log("Precargando configuración...");
     await store.dispatch('fetchConfiguracion');
+    
+    // También precargar el calendario
+    await store.dispatch('fetchCalendarioSemanal');
+    
     configPreloaded = true;
-    console.log("Configuración precargada con éxito");
+    console.log("Configuración y calendario precargados con éxito");
   } catch (error) {
     console.error("Error al precargar configuración:", error);
-    // No marcamos como precargado para permitir reintentos
+    // No marcamos como precargado para permitir reintentos, pero inicializamos con defaults
+    try {
+      // Asegurar que tenemos configuración por defecto
+      const defaultConfig = [
+        { manana: 2, tarde: 2 }, // Lunes
+        { manana: 2, tarde: 2 }, // Martes
+        { manana: 2, tarde: 2 }, // Miércoles
+        { manana: 2, tarde: 2 }, // Jueves
+        { manana: 2, tarde: 2 }, // Viernes
+        { manana: 1, tarde: 1 }, // Sábado
+        { manana: 1, tarde: 1 }  // Domingo
+      ];
+      store.commit('setConfiguracion', defaultConfig);
+      
+      // Asegurar que tenemos calendario básico
+      const calendarioVacio = Array(7).fill().map(() => ({
+        manana: [],
+        tarde: []
+      }));
+      store.commit('setCalendarioSemanal', calendarioVacio);
+      
+      configPreloaded = true;
+      console.log("Establecidos valores por defecto tras error de precarga");
+    } catch (defaultError) {
+      console.error("Error al establecer valores por defecto:", defaultError);
+    }
   }
 };
 
@@ -264,7 +293,7 @@ const startApp = async () => {
         // Esperar antes del siguiente intento
         console.log(`Reintentando en ${attempts * 1000}ms...`);
         await new Promise(resolve => setTimeout(resolve, attempts * 1000));
-      } else {
+    } else {
         console.error("No se pudo iniciar la aplicación después de varios intentos");
         
         // Mostrar mensaje de error final

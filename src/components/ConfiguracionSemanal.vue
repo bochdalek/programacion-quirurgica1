@@ -65,7 +65,10 @@ export default {
     }
   },
   computed: {
-    ...mapState(['diasSemana', 'configuracion'])
+    ...mapState({
+      diasSemana: state => state.calendar?.diasSemana || [],
+      configuracion: state => state.calendar?.configuracion || []
+    })
   },
   methods: {
     guardarConfiguracion() {

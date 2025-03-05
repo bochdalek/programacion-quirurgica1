@@ -55,7 +55,9 @@ import { mapState } from 'vuex'
 export default {
   name: 'PacientesPendientes',
   computed: {
-    ...mapState(['pacientesPendientes']),
+    ...mapState({
+      pacientesPendientes: state => state.patients?.pacientesPendientes || []
+    }),
     // Computed property para manejar de forma segura la posibilidad de que pacientesPendientes sea undefined
     safePacientesPendientes() {
       return this.pacientesPendientes || [];
@@ -70,11 +72,18 @@ export default {
       
       if (confirm('¿Desea ejecutar el algoritmo de programación? Esto generará el calendario semanal.')) {
         try {
-          this.$store.dispatch('ejecutarAlgoritmo');
-          alert('Algoritmo ejecutado. El calendario semanal ha sido generado.');
-          this.$router.push('/calendario');
+          this.$store.dispatch('ejecutarAlgoritmo')
+            .then(() => {
+              alert('Algoritmo ejecutado. El calendario semanal ha sido generado.');
+              this.$router.push('/calendario');
+            })
+            .catch(error => {
+              console.error("Error al ejecutar algoritmo:", error);
+              alert(`Error al ejecutar algoritmo: ${error.message || 'Error desconocido'}`);
+            });
         } catch (error) {
-          alert(`Error: ${error.message}`);
+          console.error("Error al ejecutar algoritmo:", error);
+          alert(`Error al ejecutar algoritmo: ${error.message || 'Error desconocido'}`);
         }
       }
     },
@@ -94,12 +103,17 @@ export default {
     },
     quitarPaciente(paciente, index) {
       if (confirm(`¿Está seguro de quitar a ${paciente.nombre} de la lista de pendientes?`)) {
-        const pacientesActualizados = [...this.safePacientesPendientes];
-        pacientesActualizados.splice(index, 1);
-        
-        this.$store.commit('actualizarPacientesPendientes', pacientesActualizados);
+        this.$store.commit('quitarPacientePendiente', index);
         alert(`${paciente.nombre} ha sido eliminado de la lista de pendientes.`);
       }
+    }
+  },
+  // Asegurar que los datos estén cargados
+  mounted() {
+    // Intentar cargar datos si no hay
+    if (this.safePacientesPendientes.length === 0) {
+      this.$store.dispatch('fetchPacientesPendientes')
+        .catch(error => console.error("Error al cargar pacientes pendientes:", error));
     }
   }
 }
